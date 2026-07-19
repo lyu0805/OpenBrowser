@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const { parseProxy, displayProxy } = require('../proxy-forwarder');
 
 /**
- * Local proxy library (AdsPower-style proxy-list CRUD, self-contained).
+ * Local proxy library (proxy-list CRUD, self-contained).
  */
 
 function uid() {
