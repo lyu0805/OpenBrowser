@@ -50,6 +50,7 @@ const UPDATE_ASSETS = Object.freeze({
   'darwin:x64': 'OpenBrowser-macOS-x86_64.dmg',
   'darwin:arm64': 'OpenBrowser-macOS-arm64-with-kernel.dmg',
   'win32:x64': 'OpenBrowser-Windows-x86_64-with-kernel.exe',
+  'linux:x64': 'OpenBrowser-Linux-x86_64-with-kernel.tar.gz',
 });
 const UPDATE_MAX_BYTES = 1024 * 1024 * 1024;
 const UPDATE_TIMEOUT_MS = 20000;
@@ -1657,7 +1658,7 @@ app.whenReady().then(async () => {
   registerTrustedIpc('profiles:clear-cache-cookies', (_event, id) => engine.clearProfileCacheAndCookies(id));
   registerTrustedIpc('profiles:status', () => engine.status());
   registerTrustedIpc('profiles:test-proxy', (_event, profile) => engine.testProxy(profile));
-  registerTrustedIpc('profiles:check-proxy', (_event, profile) => engine.checkProxy(profile));
+  registerTrustedIpc('profiles:check-proxy', (_event, profile) => engine.checkProxy(profile, { persist: true }));
 
   registerTrustedIpc('extensions:list', () => engine.listExtensions());
   registerTrustedIpc('extensions:add-folder', async () => {
