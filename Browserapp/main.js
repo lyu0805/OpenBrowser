@@ -1779,15 +1779,15 @@ app.whenReady().then(async () => {
   registerTrustedIpc('automation:build-ua', (_event, payload = {}) => {
     const { buildUaProfile, randomUaForSeed, parseOsFromUa } = require('./automation/user-agent');
     const crypto = require('crypto');
+    const osMap = { Windows: 'windows', windows: 'windows', macOS: 'macos', macos: 'macos', Mac: 'macos', Linux: 'linux', linux: 'linux' };
+    const os = osMap[payload.os] || payload.os || parseOsFromUa(payload.userAgent || '') || undefined;
     if (payload?.random) {
       const seed = crypto.randomBytes(4).readUInt32BE(0);
       return randomUaForSeed(seed, {
         majors: payload.chromeMajor ? [Number(payload.chromeMajor)] : undefined,
-        osList: payload.os ? [payload.os] : undefined,
+        osList: os ? [os] : undefined,
       });
     }
-    const osMap = { Windows: 'windows', windows: 'windows', macOS: 'macos', macos: 'macos', Mac: 'macos', Linux: 'linux', linux: 'linux' };
-    const os = osMap[payload.os] || payload.os || parseOsFromUa(payload.userAgent || '') || undefined;
     return buildUaProfile({
       userAgent: payload.userAgent || '',
       os,

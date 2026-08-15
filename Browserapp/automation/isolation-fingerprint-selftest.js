@@ -166,6 +166,14 @@ async function main() {
   }
   pass('UA, navigator platform, Client Hints and WebGL remain OS-consistent');
 
+  for (const item of osCases) {
+    const fp = buildFingerprint({ id: `auto-${item.id}`, os: item.hintPlatform, kernelVersion: '149.0.7827.114', privacy: {} });
+    assert.strictEqual(fp.platform, item.platform);
+    assert.strictEqual(fp.userAgentMetadata.platform, item.hintPlatform);
+    assert.match(fp.webgl.renderer, item.renderer);
+  }
+  pass('automatic UA follows the environment OS');
+
   const contradictory = buildFingerprint({
     id: 'env-contradictory',
     userAgent: osCases[0].ua,

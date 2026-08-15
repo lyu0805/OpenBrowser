@@ -784,6 +784,7 @@ let syncSettings = (() => { try { return normalizeSyncSettings(JSON.parse(localS
 let pendingDeleteProfiles = [];
 let editingProfileId = null;
 let editorNetworkResult = null;
+let editorSaving = false;
 let toastTimer = null;
 const PROFILE_PAGE_SIZES = [10, 20, 50, 100];
 const PROFILE_PAGE_SIZE_KEY = 'openbrowser-profile-page-size-v1';
@@ -1431,7 +1432,12 @@ function parseEditorProxy(value) {
   return { mode: 'custom', type: parts.length >= 4 ? 'socks5' : 'http', host: parts[0] || '', port: parts[1] || '', username: parts[2] || '', password: parts.slice(3).join(':') };
 }
 
-function editorSet(id, value) { const field = $(id); if (field) field.value = value ?? ''; }
+function editorSet(id, value) {
+  const field = $(id);
+  if (!field) return;
+  field.value = value ?? '';
+  if (field instanceof HTMLSelectElement) syncThemedSelect(field);
+}
 function editorCheck(id, value) { const field = $(id); if (field) field.checked = Boolean(value); }
 function editorSelectedNetwork() { return document.querySelector('input[name="editor-network"]:checked')?.value || 'direct'; }
 
@@ -1705,7 +1711,7 @@ function renderEditorSummary() {
     audio: { real: '真实', muted: '静音输出' }, media: { real: '按网站询问', blocked: '禁止访问' }, speech: { real: '真实', blocked: '禁用' }
   };
   const values = [
-    [tx('浏览器'), 'Google Chrome'], [tx('分组'), groupNameOf(draft)], ['User-Agent', draft.userAgent || 'Chrome 默认'], [tx('网络'), maskProxy(draft.proxy)], ['WebRTC', labels.webrtc[privacy.webrtc]],
+    [tx('浏览器'), 'Google Chrome'], [tx('系统平台'), draft.os], [tx('分组'), groupNameOf(draft)], ['User-Agent', draft.userAgent || 'Chrome 默认'], [tx('网络'), maskProxy(draft.proxy)], ['WebRTC', labels.webrtc[privacy.webrtc]],
     [tx('时区'), labels.timezoneMode[privacy.timezoneMode]], [tx('地理位置'), labels.geoMode[privacy.geoMode]], [tx('语言'), draft.language], [tx('界面语言'), privacy.uiLanguage === 'profile' ? '跟随语言' : privacy.uiLanguage],
     [tx('分辨率'), draft.screenMode === 'auto' ? tx('跟随当前电脑') : draft.width + ' × ' + draft.height], [tx('字体'), privacy.fontMode === 'custom' ? privacy.fontSize + 'px' : '默认'], ['Canvas', labels.canvas[privacy.canvas]],
     ['WebGL', labels.webgl[privacy.webgl]], ['WebGPU', privacy.webgpu === 'blocked' ? '禁用' : (privacy.webgpu === 'webgl' ? '基于 WebGL' : '真实')], ['AudioContext', labels.audio[privacy.audio]], [tx('媒体设备'), labels.media[privacy.media]],
@@ -1751,9 +1757,48 @@ function renderEditorSummary() {
   }
 }
 
-function setEditorTab(tab) {
-  $$('[data-editor-tab]').forEach((button) => button.classList.toggle('active', button.dataset.editorTab === tab));
-  $$('[data-editor-panel]').forEach((panel) => panel.classList.toggle('active', panel.dataset.editorPanel === tab));
+function setEditorSaveState(state = 'saved', message = '') {
+  const labels = { saved: '已保存', dirty: '有未保存更改', saving: '正在保存…', error: '保存失败，请重试' };
+  const status = $('#editor-save-state');
+  const saveButton = $('#editor-save');
+  const cancelButton = $('#editor-cancel');
+  const backButton = $('#editor-back');
+  const form = $('#profile-editor-form');
+  editorSaving = state === 'saving';
+  if (status) {
+    status.dataset.state = state;
+    status.textContent = message || tx(labels[state] || labels.saved);
+  }
+  if (saveButton) {
+    saveButton.disabled = editorSaving;
+    saveButton.toggleAttribute('aria-busy', editorSaving);
+    saveButton.textContent = editorSaving ? tx('保存中…') : tx('立即保存');
+  }
+  if (cancelButton) cancelButton.disabled = editorSaving;
+  if (backButton) backButton.disabled = editorSaving;
+  if (form) form.toggleAttribute('aria-busy', editorSaving);
+}
+
+function markEditorDirty() {
+  if (editingProfileId && !editorSaving) setEditorSaveState('dirty');
+}
+
+function setEditorTab(tab, { focus = false } = {}) {
+  const buttons = $$('[data-editor-tab]');
+  const activeButton = buttons.find((button) => button.dataset.editorTab === tab) || buttons[0];
+  const activeTab = activeButton?.dataset.editorTab;
+  buttons.forEach((button) => {
+    const active = button === activeButton;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
+  $$('[data-editor-panel]').forEach((panel) => {
+    const active = panel.dataset.editorPanel === activeTab;
+    panel.classList.toggle('active', active);
+    panel.hidden = !active;
+  });
+  if (focus) activeButton?.focus();
 }
 
 function openProfileEditor(id) {
@@ -1913,6 +1958,7 @@ function openProfileEditor(id) {
   setEditorTab('basic');
   updateEditorVisibility();
   renderEditorSummary();
+  setEditorSaveState('saved');
   switchView('profile-editor');
 }
 
@@ -1929,6 +1975,7 @@ function formatProxyCheckResult(result = {}) {
 
 function applyEditorNetworkResult(result = {}, { fillFingerprint = true } = {}) {
   editorNetworkResult = result;
+  markEditorDirty();
   if (!fillFingerprint) return;
   if (result.timezone) {
     editorSet('#editor-timezone-mode', 'ip');
@@ -2023,7 +2070,7 @@ function useSystemEditorDefaults() {
   editorSet('#editor-user-agent', ''); editorSet('#editor-timezone-mode', 'real'); editorSet('#editor-timezone', Intl.DateTimeFormat().resolvedOptions().timeZone || ''); editorSet('#editor-geo-mode', 'disabled'); editorSet('#editor-ui-language', 'system');
   editorSet('#editor-resolution', 'auto'); editorSet('#editor-width', Math.max(640, screen.availWidth || 1280)); editorSet('#editor-height', Math.max(480, screen.availHeight || 820));
   editorSet('#editor-webrtc', 'real'); editorSet('#editor-canvas', 'real'); editorSet('#editor-webgl', 'real'); editorSet('#editor-webgpu', 'real'); editorSet('#editor-audio', 'real'); editorSet('#editor-media', 'real'); editorSet('#editor-speech', 'real');
-  updateEditorVisibility(); renderEditorSummary(); toast(tx('已读取本机安全默认值'));
+  markEditorDirty(); updateEditorVisibility(); renderEditorSummary(); toast(tx('已读取本机安全默认值'));
   refreshUaMetaPreview().catch(() => {});
 }
 
@@ -2043,6 +2090,7 @@ async function applyBuiltUa(payload) {
   else if (ua.os === 'linux') editorSet('#editor-os', 'Linux');
   else if (ua.os === 'windows') editorSet('#editor-os', 'Windows');
   if (ua.chromeMajor) editorSet('#editor-ua-chrome-major', String(ua.chromeMajor));
+  markEditorDirty();
   await showUaMetaPreview(ua);
   renderEditorSummary();
   return ua;
@@ -2097,6 +2145,7 @@ document.getElementById('editor-ua-random')?.addEventListener('click', async () 
   try {
     await applyBuiltUa({
       random: true,
+      os: editorOsToUaKey($('#editor-os')?.value),
       chromeMajor: Number($('#editor-ua-chrome-major')?.value) || undefined,
     });
     toast(tx('已随机生成 UA'));
@@ -2104,6 +2153,7 @@ document.getElementById('editor-ua-random')?.addEventListener('click', async () 
 });
 document.getElementById('editor-ua-clear')?.addEventListener('click', () => {
   editorSet('#editor-user-agent', '');
+  markEditorDirty();
   refreshUaMetaPreview().catch(() => {});
   renderEditorSummary();
   toast(tx('已改为自动生成'));
@@ -2112,7 +2162,10 @@ document.getElementById('editor-user-agent')?.addEventListener('input', () => {
   clearTimeout(window.__uaPreviewTimer);
   window.__uaPreviewTimer = setTimeout(() => refreshUaMetaPreview().catch(() => {}), 300);
 });
-document.getElementById('editor-os')?.addEventListener('change', () => refreshUaMetaPreview().catch(() => {}));
+document.getElementById('editor-os')?.addEventListener('change', () => {
+  refreshUaMetaPreview().catch(() => {});
+  renderEditorSummary();
+});
 
 function profileEngine(id) { return engineProfiles.find((item) => item.id === id) || { running: false, assignedExtensions: [] }; }
 
@@ -3640,7 +3693,20 @@ $('#profile-form').addEventListener('submit', async (event) => {
   }
 });
 
-$$('[data-editor-tab]').forEach((button) => button.addEventListener('click', () => setEditorTab(button.dataset.editorTab)));
+const editorTabButtons = $$('[data-editor-tab]');
+editorTabButtons.forEach((button, index) => {
+  button.addEventListener('click', () => setEditorTab(button.dataset.editorTab));
+  button.addEventListener('keydown', (event) => {
+    let nextIndex;
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % editorTabButtons.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + editorTabButtons.length) % editorTabButtons.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = editorTabButtons.length - 1;
+    else return;
+    event.preventDefault();
+    setEditorTab(editorTabButtons[nextIndex].dataset.editorTab, { focus: true });
+  });
+});
 $('#editor-back').addEventListener('click', () => { editingProfileId = null; editorNetworkResult = null; switchView('profiles'); });
 $('#editor-cancel').addEventListener('click', () => { editingProfileId = null; editorNetworkResult = null; switchView('profiles'); });
 $('#editor-test-proxy')?.addEventListener('click', testEditorProxy);
@@ -3654,7 +3720,7 @@ const onEditorFormChange = (event) => {
     $('#editor-proxy-result').className = 'proxy-test-result';
     $('#editor-proxy-result').textContent = editorSelectedNetwork() === 'direct' ? tx('本地直连') : tx('设置已更改，请重新检测');
   }
-  updateEditorVisibility(); renderEditorSummary();
+  markEditorDirty(); updateEditorVisibility(); renderEditorSummary();
 };
 $('#profile-editor-form').addEventListener('input', onEditorFormChange);
 $('#profile-editor-form').addEventListener('change', onEditorFormChange);
@@ -3713,6 +3779,7 @@ document.getElementById('editor-cookie-file')?.addEventListener('change', async 
     const data = JSON.parse(text);
     if (!Array.isArray(data)) throw new Error(tx('Cookie 必须是 JSON 数组'));
     editorSet('#editor-cookies', JSON.stringify(data, null, 2));
+    markEditorDirty();
     toast('已导入 ' + data.length + ' 条 Cookie（保存环境后生效）');
   } catch (error) { toast('导入失败：' + error.message); }
 });
@@ -3731,15 +3798,25 @@ document.getElementById('editor-clear-cache-cookie')?.addEventListener('click', 
   } catch (error) { toast(error.message); }
 });
 $('#profile-editor-form').addEventListener('submit', async (event) => {
-  event.preventDefault(); const index = ui.profiles.findIndex((item) => item.id === editingProfileId); if (index < 0) return toast(tx('环境不存在'));
+  event.preventDefault();
+  if (editorSaving) return;
+  const index = ui.profiles.findIndex((item) => item.id === editingProfileId);
+  if (index < 0) {
+    setEditorSaveState('error', tx('环境不存在'));
+    return toast(tx('环境不存在'));
+  }
+  setEditorSaveState('saving');
   try {
     const previous = ui.profiles[index]; const draft = editorDraft(true); if (!draft.name) throw new Error(tx('环境名称不能为空'));
     const switchedToDirect = editorSelectedNetwork() !== 'direct' && isDirectProxy(draft.proxy);
     if (draft.proxy !== previous.proxy && !editorNetworkResult) { delete draft.exitIp; delete draft.exitCountryCode; delete draft.exitTimezone; delete draft.exitLatitude; delete draft.exitLongitude; delete draft.exitCheckedAt; }
     draft.updatedAt = new Date().toISOString();
     ui.profiles[index] = draft; save(); engineProfiles = await window.ops.syncProfiles(ui.profiles); renderProfiles();
-    const running = profileEngine(draft.id).running; log('Profile', '已更新环境 ' + displayProfileNumber(draft)); editingProfileId = null; editorNetworkResult = null; switchView('profiles'); toast(switchedToDirect ? '未填写代理，已自动切换为本地直连' : (running ? '设置已保存，请重启该环境后生效' : '环境设置已保存'));
-  } catch (error) { toast('保存失败：' + error.message); }
+    const running = profileEngine(draft.id).running; log('Profile', '已更新环境 ' + displayProfileNumber(draft)); setEditorSaveState('saved'); editingProfileId = null; editorNetworkResult = null; switchView('profiles'); toast(switchedToDirect ? '未填写代理，已自动切换为本地直连' : (running ? '设置已保存，请重启该环境后生效' : '环境设置已保存'));
+  } catch (error) {
+    setEditorSaveState('error');
+    toast('保存失败：' + error.message);
+  }
 });
 
 $('#batch-add').addEventListener('click', () => {
@@ -5751,6 +5828,7 @@ document.getElementById('editor-cloud-push-one')?.addEventListener('click', asyn
     ui.profiles[idx] = { ...ui.profiles[idx], ...editorDraft(false), updatedAt: new Date().toISOString() };
     save();
     await window.ops.syncProfiles(ui.profiles);
+    setEditorSaveState('saved');
     await pushProfilesToCloud([editingProfileId]);
   } catch (error) { toast(error.message); }
 });

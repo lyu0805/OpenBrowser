@@ -196,3 +196,201 @@
   max-width: 28px !important;
   max-height: 28px !important;
 }
+
+/* Profile editor: resilient layout, aligned fields, and clear interaction state. */
+#view-profile-editor .environment-editor {
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 24vw, 360px);
+}
+
+#view-profile-editor .editor-form,
+#view-profile-editor .profile-summary,
+#view-profile-editor .editor-panel {
+  min-width: 0;
+}
+
+#view-profile-editor .editor-tabs {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+#view-profile-editor .editor-tabs button {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
+  transition: color .14s ease, background-color .14s ease, border-color .14s ease;
+}
+
+#view-profile-editor .editor-tabs button:hover {
+  color: var(--theme-text, #26344a);
+}
+
+#view-profile-editor .editor-tabs button:focus-visible,
+#view-profile-editor .editor-back:focus-visible,
+#view-profile-editor .editor-actions button:focus-visible {
+  outline: 2px solid var(--theme-accent-strong, var(--blue));
+  outline-offset: 2px;
+}
+
+#view-profile-editor .editor-panel.active {
+  animation: editor-panel-enter .14s ease-out;
+}
+
+#view-profile-editor .editor-panel > h3 {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+#view-profile-editor .settings-row {
+  grid-template-columns: minmax(120px, 145px) minmax(0, 1fr);
+}
+
+#view-profile-editor .settings-row:has(> :nth-child(3):not(datalist)) {
+  grid-template-columns: minmax(120px, 145px) repeat(2, minmax(0, 1fr));
+}
+
+#view-profile-editor .settings-row:has(> :nth-child(4):not(datalist)) {
+  grid-template-columns: minmax(120px, 145px) repeat(3, minmax(0, 1fr));
+}
+
+#view-profile-editor .settings-row > * {
+  min-width: 0;
+}
+
+#view-profile-editor .editor-tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 16px;
+}
+
+#view-profile-editor .ua-version-input {
+  width: 82px !important;
+  flex: 0 0 82px;
+}
+
+#view-profile-editor .editor-stability-card {
+  margin-top: 10px;
+}
+
+#view-profile-editor .profile-summary {
+  max-height: calc(100dvh - var(--ui-header-height, 0px) - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+#view-profile-editor .editor-actions {
+  z-index: 5;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 -8px 18px rgb(31 42 61 / 4%);
+}
+
+#view-profile-editor .editor-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+#view-profile-editor .editor-save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+#view-profile-editor .editor-save-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+#view-profile-editor .editor-save-state[data-state="saved"] { color: var(--green, #11805a); }
+#view-profile-editor .editor-save-state[data-state="dirty"] { color: #a96800; }
+#view-profile-editor .editor-save-state[data-state="saving"] { color: var(--blue); }
+#view-profile-editor .editor-save-state[data-state="error"] { color: var(--red, #c43a49); }
+
+#view-profile-editor .editor-save-state[data-state="saving"]::before {
+  animation: editor-save-pulse .9s ease-in-out infinite alternate;
+}
+
+#view-profile-editor .editor-actions button:disabled {
+  cursor: wait;
+  opacity: .58;
+}
+
+#view-profile-editor .editor-back:disabled {
+  cursor: wait;
+  opacity: .45;
+}
+
+@keyframes editor-panel-enter {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes editor-save-pulse {
+  from { opacity: .35; transform: scale(.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 1350px) {
+  #view-profile-editor .environment-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #view-profile-editor .profile-summary {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 767px) {
+  #view-profile-editor .form-two,
+  #view-profile-editor .form-three,
+  #view-profile-editor .privacy-grid,
+  #view-profile-editor .check-grid,
+  #view-profile-editor .proxy-host-row,
+  #view-profile-editor .settings-row,
+  #view-profile-editor .settings-row:has(> :nth-child(3):not(datalist)),
+  #view-profile-editor .settings-row:has(> :nth-child(4):not(datalist)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #view-profile-editor .settings-row {
+    align-items: stretch;
+  }
+
+  #view-profile-editor .editor-actions {
+    flex-wrap: wrap;
+  }
+
+  #view-profile-editor .editor-save-state {
+    width: 100%;
+  }
+
+  #view-profile-editor .editor-action-buttons {
+    width: 100%;
+  }
+
+  #view-profile-editor .editor-action-buttons button {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #view-profile-editor .editor-panel.active,
+  #view-profile-editor .editor-save-state[data-state="saving"]::before {
+    animation: none;
+  }
+}

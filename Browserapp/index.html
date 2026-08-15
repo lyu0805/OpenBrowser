@@ -133,17 +133,17 @@
             <button class="editor-back" id="editor-back" type="button">‹ 返回</button>
             <div><h2>修改环境 <span id="editor-profile-id"></span></h2><p>平台账号 · 代理 · 指纹 · 偏好 — 前后端完整生效；可配合云备份跨设备恢复</p></div>
           </div>
-          <div class="editor-tabs" role="tablist">
-            <button class="active" type="button" data-editor-tab="basic">平台账号配置</button>
-            <button type="button" data-editor-tab="proxy">代理配置</button>
-            <button type="button" data-editor-tab="privacy">指纹配置</button>
-            <button type="button" data-editor-tab="advanced">偏好设置</button>
+          <div class="editor-tabs" role="tablist" aria-label="环境配置分类">
+            <button class="active" id="editor-tab-basic" type="button" role="tab" aria-selected="true" aria-controls="editor-panel-basic" tabindex="0" data-editor-tab="basic">平台账号配置</button>
+            <button id="editor-tab-proxy" type="button" role="tab" aria-selected="false" aria-controls="editor-panel-proxy" tabindex="-1" data-editor-tab="proxy">代理配置</button>
+            <button id="editor-tab-privacy" type="button" role="tab" aria-selected="false" aria-controls="editor-panel-privacy" tabindex="-1" data-editor-tab="privacy">指纹配置</button>
+            <button id="editor-tab-advanced" type="button" role="tab" aria-selected="false" aria-controls="editor-panel-advanced" tabindex="-1" data-editor-tab="advanced">偏好设置</button>
           </div>
           <div class="environment-editor">
             <form id="profile-editor-form" class="editor-form">
               <input id="editor-id" type="hidden">
               <input id="editor-name" type="hidden">
-              <section class="editor-panel active" data-editor-panel="basic">
+              <section class="editor-panel active" id="editor-panel-basic" role="tabpanel" aria-labelledby="editor-tab-basic" data-editor-panel="basic">
                 <h3>平台账号配置</h3>
                 <div class="form-two platform-row">
                   <label class="platform-select-label">* 平台
@@ -182,7 +182,10 @@
                   </label>
                 </div>
                 <p class="network-mode-hint">选择预设平台会写入指定地址；选「空白页」则启动不打开站点；「其他平台」可手填任意 URL。</p>
-                <label>窗口名称<input id="editor-title" maxlength="120" placeholder="例如：Gmail"></label>
+                <div class="form-two">
+                  <label>窗口名称<input id="editor-title" maxlength="120" placeholder="例如：Gmail"></label>
+                  <label>系统平台<select id="editor-os"><option value="Windows">Windows</option><option value="macOS">macOS</option><option value="Linux">Linux</option></select></label>
+                </div>
                 <div class="form-two">
                   <label>选择分组<select id="editor-group"></select></label>
                   <label>标签<input id="editor-tag" maxlength="40" placeholder="可选标签"></label>
@@ -195,7 +198,7 @@
                 <label>Cookie JSON<textarea id="editor-cookies" rows="5" placeholder='[{"name":"session","value":"...","domain":".example.com","path":"/"}]'></textarea>
                   <small>选填，支持 JSON 数组。保存后下次启动导入；开启云备份后关闭窗口会自动刷新。</small>
                 </label>
-                <div class="storage-actions" style="margin-top:4px;margin-bottom:12px">
+                <div class="storage-actions editor-tool-actions">
                   <button class="outline" type="button" id="editor-cookie-export">导出 Cookie</button>
                   <button class="outline" type="button" id="editor-cookie-import-file">从文件导入 Cookie</button>
                   <button class="outline" type="button" id="editor-clear-cache-cookie">清除缓存及 Cookie</button>
@@ -204,7 +207,6 @@
                 <label>备注<textarea id="editor-note" rows="3" maxlength="2000" placeholder="浏览器窗口备注"></textarea></label>
                 <div class="form-two" hidden>
                   <label>浏览器<select id="editor-browser"><option>Google Chrome</option></select></label>
-                  <label>操作系统<select id="editor-os"><option value="Windows">Windows</option><option value="macOS">macOS</option><option value="Linux">Linux</option></select></label>
                   <label><span data-i18n="common.language">语言</span><select id="editor-language">
                     <option value="en-US">English (US)</option>
                     <option value="zh-CN">中文（简体）</option>
@@ -218,7 +220,7 @@
                   </select></label>
                 </div>
               </section>
-              <section class="editor-panel" data-editor-panel="proxy">
+              <section class="editor-panel" id="editor-panel-proxy" role="tabpanel" aria-labelledby="editor-tab-proxy" data-editor-panel="proxy" hidden>
                 <h3>代理配置</h3>
                 <label class="check-row"><input id="editor-proxy-check-start" type="checkbox"> 每次启动检测出口 IP（动态代理建议开启）</label>
                 <p class="network-mode-hint">本地直连 = 本机网络；代理模式 = HTTP / HTTPS / SOCKS5。</p>
@@ -281,7 +283,7 @@
                   </div>
                   <label class="check-row"><input id="editor-direct-bypass" type="checkbox"> 直连白名单（部分域名不走代理）</label>
                   <label>白名单（逗号/换行分隔）<textarea id="editor-bypass-list" rows="2" placeholder="*.local, intranet.company.com"></textarea></label>
-                  <div class="actions" style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap">
+                  <div class="actions editor-tool-actions">
                     <button class="outline" id="editor-test-proxy" type="button">代理检测</button>
                     <button class="outline" id="editor-apply-proxy-fp" type="button">用代理填充指纹</button>
                     <button class="outline" id="editor-refresh-proxy" type="button">刷新代理 IP</button>
@@ -289,7 +291,7 @@
                   <div class="proxy-test-result" id="editor-proxy-result">尚未检测</div>
                 </div>
               </section>
-              <section class="editor-panel" data-editor-panel="privacy">
+              <section class="editor-panel" id="editor-panel-privacy" role="tabpanel" aria-labelledby="editor-tab-privacy" data-editor-panel="privacy" hidden>
                 <h3>指纹配置</h3>
                 <label class="check-row"><input id="editor-refresh-fingerprint" type="checkbox"> 每次打开刷新指纹</label>
                 <label>User-Agent
@@ -299,7 +301,7 @@
                   <button type="button" class="outline" id="editor-ua-generate">按系统生成 UA</button>
                   <button type="button" class="outline" id="editor-ua-random">随机 UA</button>
                   <button type="button" class="outline" id="editor-ua-clear">跟随自动</button>
-                  <label class="ua-ver">Chrome 主版本 <input id="editor-ua-chrome-major" type="number" min="100" max="200" value="131" style="width:72px"></label>
+                  <label class="ua-ver">Chrome 主版本 <input class="ua-version-input" id="editor-ua-chrome-major" type="number" min="100" max="200" value="131"></label>
                 </div>
                 <pre class="ua-meta-preview" id="editor-ua-meta" hidden></pre>
                 <div class="settings-row"><span data-i18n="editor.langMode">浏览器语言</span>
@@ -328,11 +330,43 @@
                 <input type="checkbox" id="editor-lang-from-ip" checked hidden>
                 <div class="settings-row"><span>时区</span>
                   <select id="editor-timezone-mode"><option value="ip">基于出口 IP</option><option value="real">系统真实</option><option value="custom">自定义</option></select>
-                  <input id="editor-timezone" placeholder="Asia/Shanghai">
+                  <input id="editor-timezone" list="editor-timezone-list" autocomplete="off" aria-label="自定义时区" placeholder="选择或输入，如 Asia/Shanghai">
+                  <datalist id="editor-timezone-list">
+                    <option value="UTC" label="协调世界时"></option>
+                    <option value="Asia/Shanghai" label="中国大陆 · 上海"></option>
+                    <option value="Asia/Hong_Kong" label="中国香港"></option>
+                    <option value="Asia/Taipei" label="中国台北"></option>
+                    <option value="Asia/Tokyo" label="日本 · 东京"></option>
+                    <option value="Asia/Seoul" label="韩国 · 首尔"></option>
+                    <option value="Asia/Singapore" label="新加坡"></option>
+                    <option value="Asia/Kuala_Lumpur" label="马来西亚 · 吉隆坡"></option>
+                    <option value="Asia/Bangkok" label="泰国 · 曼谷"></option>
+                    <option value="Asia/Ho_Chi_Minh" label="越南 · 胡志明市"></option>
+                    <option value="Asia/Jakarta" label="印度尼西亚 · 雅加达"></option>
+                    <option value="Asia/Manila" label="菲律宾 · 马尼拉"></option>
+                    <option value="Asia/Kolkata" label="印度 · 加尔各答"></option>
+                    <option value="Asia/Dubai" label="阿联酋 · 迪拜"></option>
+                    <option value="Asia/Riyadh" label="沙特阿拉伯 · 利雅得"></option>
+                    <option value="Europe/London" label="英国 · 伦敦"></option>
+                    <option value="Europe/Paris" label="法国 · 巴黎"></option>
+                    <option value="Europe/Berlin" label="德国 · 柏林"></option>
+                    <option value="Europe/Madrid" label="西班牙 · 马德里"></option>
+                    <option value="Europe/Moscow" label="俄罗斯 · 莫斯科"></option>
+                    <option value="America/New_York" label="美国东部 · 纽约"></option>
+                    <option value="America/Chicago" label="美国中部 · 芝加哥"></option>
+                    <option value="America/Denver" label="美国山地 · 丹佛"></option>
+                    <option value="America/Los_Angeles" label="美国西部 · 洛杉矶"></option>
+                    <option value="America/Toronto" label="加拿大 · 多伦多"></option>
+                    <option value="America/Vancouver" label="加拿大 · 温哥华"></option>
+                    <option value="America/Mexico_City" label="墨西哥 · 墨西哥城"></option>
+                    <option value="America/Sao_Paulo" label="巴西 · 圣保罗"></option>
+                    <option value="Australia/Sydney" label="澳大利亚 · 悉尼"></option>
+                    <option value="Pacific/Auckland" label="新西兰 · 奥克兰"></option>
+                  </datalist>
                 </div>
                 <div class="settings-row"><span>地理位置</span>
                   <select id="editor-geo-mode"><option value="ip">基于出口 IP</option><option value="prompt">询问</option><option value="disabled">禁用</option><option value="custom">自定义</option></select>
-                  <label class="check-row" style="margin:0"><input id="editor-geo-from-ip" type="checkbox" checked> 基于 IP 生成坐标</label>
+                  <label class="check-row"><input id="editor-geo-from-ip" type="checkbox" checked> 基于 IP 生成坐标</label>
                 </div>
                 <div class="form-three geo-custom"><label>纬度<input id="editor-latitude" type="number" step="0.000001" min="-90" max="90"></label><label>经度<input id="editor-longitude" type="number" step="0.000001" min="-180" max="180"></label><label>精度（米）<input id="editor-accuracy" type="number" min="1" max="100000" value="100"></label></div>
                 <div class="settings-row"><span>分辨率</span><select id="editor-resolution"><option value="auto">跟随当前电脑</option><option value="1280x820">1280 × 820</option><option value="1366x768">1366 × 768</option><option value="1440x900">1440 × 900</option><option value="1920x1080">1920 × 1080</option><option value="custom">自定义</option></select><input id="editor-width" type="number" min="640" max="7680" placeholder="宽"><input id="editor-height" type="number" min="480" max="4320" placeholder="高"></div>
@@ -356,7 +390,7 @@
                   <label>设备名称<input id="editor-device-name" placeholder="自定义设备名"></label>
                   <label>Do Not Track<select id="editor-dnt-mode"><option value="default">默认</option><option value="on">开启</option><option value="off">关闭</option></select></label>
                 </div>
-                <div class="advanced-card" style="margin-top:4px">
+                <div class="advanced-card editor-stability-card">
                   <strong>站点稳定性</strong>
                   <p class="network-mode-hint">高风险站点降低 Canvas/WebGL 噪声漂移；开启后「每次打开刷新指纹」在稳定性模式非关闭时不再生效。</p>
                   <div class="form-two">
@@ -397,7 +431,7 @@
                 <label>允许被扫描的端口（可选，逗号分隔）<input id="editor-port-scan-allow" placeholder="例如：4000,4001（1–65535）"></label>
                 <label class="check-row"><input id="editor-cf-optimize" type="checkbox" checked> Cloudflare 验证优化 — 减少五秒盾卡住（可能略增被识别概率）</label>
               </section>
-              <section class="editor-panel" data-editor-panel="advanced">
+              <section class="editor-panel" id="editor-panel-advanced" role="tabpanel" aria-labelledby="editor-tab-advanced" data-editor-panel="advanced" hidden>
                 <h3>偏好设置</h3>
                 <div class="advanced-card">
                   <strong>云备份</strong>
@@ -408,7 +442,7 @@
                   <label class="check-row"><input id="editor-sync-ls" type="checkbox"> 同步 Local Storage（部分站点存登录态）</label>
                   <label class="check-row"><input id="editor-sync-passwords" type="checkbox"> 同步已保存的用户名密码</label>
                   <label class="check-row"><input id="editor-sync-ext" type="checkbox"> 同步插件应用数据（数字货币钱包建议关闭）</label>
-                  <div class="storage-actions" style="margin-top:10px">
+                  <div class="storage-actions editor-tool-actions">
                     <button class="outline" type="button" id="editor-cloud-push-one">立即推送此环境到云</button>
                     <button class="outline" type="button" id="editor-cloud-pull-one">从云拉取并合并此环境</button>
                   </div>
@@ -459,7 +493,10 @@
                   <label class="check-row"><input id="editor-clear-cache" type="checkbox"> 启动时清除缓存</label>
                 </div>
               </section>
-              <div class="editor-actions"><button class="outline" id="editor-cancel" type="button">取消</button><button class="primary" type="submit">立即保存</button></div>
+              <div class="editor-actions">
+                <span class="editor-save-state" id="editor-save-state" role="status" aria-live="polite" data-state="saved">已保存</span>
+                <div class="editor-action-buttons"><button class="outline" id="editor-cancel" type="button">取消</button><button class="primary" id="editor-save" type="submit">立即保存</button></div>
+              </div>
             </form>
             <aside class="profile-summary">
               <div class="summary-head"><strong>概要</strong><button id="editor-system-defaults" type="button"><i data-lucide="refresh-cw"></i>读取本机默认值</button></div>

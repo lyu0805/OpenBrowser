@@ -1136,8 +1136,14 @@ html[data-ui-theme="merge-gateway"] dialog input[type="radio"] {
   flex: 0 0 18px; margin: 0 !important;
 }
 html[data-ui-theme="merge-gateway"] #view-profile-editor .settings-row {
-  grid-template-columns: minmax(calc(var(--xai-space-12) + var(--xai-space-12)), calc(var(--xai-space-15) + var(--xai-space-15))) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(126px, 162px) minmax(0, 1fr);
   align-items: center; gap: var(--xai-space-3); margin-bottom: var(--xai-space-3);
+}
+html[data-ui-theme="merge-gateway"] #view-profile-editor .settings-row:has(> :nth-child(3):not(datalist)) {
+  grid-template-columns: minmax(126px, 162px) repeat(2, minmax(0, 1fr));
+}
+html[data-ui-theme="merge-gateway"] #view-profile-editor .settings-row:has(> :nth-child(4):not(datalist)) {
+  grid-template-columns: minmax(126px, 162px) repeat(3, minmax(0, 1fr));
 }
 html[data-ui-theme="merge-gateway"] #view-profile-editor .settings-row > span {
   align-self: center; color: var(--xai-ink-console); font-weight: 500;

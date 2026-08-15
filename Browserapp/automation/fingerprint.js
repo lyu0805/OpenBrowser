@@ -660,6 +660,7 @@ function buildFingerprint(profile = {}) {
     ? fpIn.clientHints
     : (privacy.clientHints && typeof privacy.clientHints === 'object' ? privacy.clientHints : {});
   const kernelMajor = Number(String(profile.kernelVersion || '').match(/^\d+/)?.[0]) || 0;
+  const configuredOs = desktopOs(String(fpIn.os || clientHintsIn.os || profile.os || '').toLowerCase());
   let uaProfile;
   if (uaOverride) {
     const osFromUa = parseOsFromUa(uaOverride);
@@ -681,7 +682,7 @@ function buildFingerprint(profile = {}) {
     uaProfile = randomUaForSeed(u32(seed, 44), {
       majors: kernelMajor ? [kernelMajor] : undefined,
       // The UA is the source of truth for every OS-facing fingerprint surface.
-      osList: ['windows', 'windows', 'macos', 'linux'],
+      osList: configuredOs ? [configuredOs] : ['windows', 'windows', 'macos', 'linux'],
     });
     // Apply explicit clientHints overrides on top of seeded UA
     if (Object.keys(clientHintsIn).length) {
