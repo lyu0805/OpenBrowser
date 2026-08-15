@@ -6,6 +6,17 @@ const { URL } = require('url');
 
 const MAX_BODY_BYTES = 1024 * 1024;
 
+function normalizeApiKey(value) {
+  const key = String(value || '').trim();
+  const bytes = Buffer.byteLength(key);
+  if (bytes < 16 || bytes > 256 || /[\x00-\x1f\x7f]/.test(key)) {
+    const error = new Error('API Key 必须为 16–256 个字节，且不能包含控制字符');
+    error.statusCode = 400;
+    throw error;
+  }
+  return key;
+}
+
 function responseHeaders(origin = '') {
   const headers = {
     'Content-Type': 'application/json; charset=utf-8',
@@ -66,7 +77,8 @@ class LocalApiServer {
   constructor(options = {}) {
     this.host = options.host || '127.0.0.1';
     this.port = Number(options.port) || 50325;
-    this.apiKey = options.apiKey ? String(options.apiKey) : crypto.randomBytes(32).toString('base64url');
+    this.apiKey = normalizeApiKey(options.apiKey || crypto.randomBytes(32).toString('base64url'));
+    this.onApiKeyChange = options.onApiKeyChange || null;
     this.allowedOrigins = new Set(options.allowedOrigins || []);
     this.engine = options.engine;
     this.rpaEngine = options.rpaEngine;
@@ -92,6 +104,13 @@ class LocalApiServer {
     const keyBuf = Buffer.from(this.apiKey);
     if (suppliedBuf.length !== keyBuf.length) return false;
     return crypto.timingSafeEqual(suppliedBuf, keyBuf);
+  }
+
+  async setApiKey(value) {
+    const next = normalizeApiKey(value);
+    await this.onApiKeyChange?.(next);
+    this.apiKey = next;
+    return { updated: true };
   }
 
   allowedOrigin(req) {
@@ -170,6 +189,9 @@ class LocalApiServer {
     }
     if (pathname === '/api/getVersion' || pathname === '/api/v1/version') {
       return ok({ version: this.getVersion(), soft: 'OpenBrowser' });
+    }
+    if (pathname === '/api/settings/api-key' && method === 'POST') {
+      return ok(await this.setApiKey(input.apiKey || input.api_key || input.key));
     }
 
     // ---- profiles (v1-style) ----
@@ -416,4 +438,4 @@ class LocalApiServer {
   }
 }
 
-module.exports = { LocalApiServer };
+module.exports = { LocalApiServer, normalizeApiKey };

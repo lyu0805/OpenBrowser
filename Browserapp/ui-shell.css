@@ -665,10 +665,12 @@ body {
   font-variant-numeric: tabular-nums;
 }
 #view-profiles .table-card th.col-name,
-#view-profiles .table-card td:nth-child(3),
+#view-profiles .table-card td:nth-child(4),
 #view-profiles .table-card td.col-name {
-  width: 20%;
+  width: 14%;
 }
+#view-profiles .table-card th.col-profile-id,
+#view-profiles .table-card td.col-profile-id { width: 10%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 #view-profiles .table-card th.col-group,
 #view-profiles .table-card td.col-group { width: 9%; max-width: none !important; }
 #view-profiles .table-card th.col-browser,
@@ -696,8 +698,8 @@ body {
 #view-profiles .table-card td.col-status { width: 10%; min-width: 96px; max-width: none !important; }
 #view-profiles .table-card th.col-actions,
 #view-profiles .table-card td.col-actions {
-  width: 15.5%;
-  min-width: 132px;
+  width: 19.5%;
+  min-width: 180px;
   overflow: visible;
   text-overflow: clip;
   position: sticky;

@@ -845,9 +845,13 @@ function emit(value) {
 function pickWorkArea() {
   try {
     const point = screen.getCursorScreenPoint?.();
-    if (point) return screen.getDisplayNearestPoint(point).workArea;
+    if (point) {
+      const display = screen.getDisplayNearestPoint(point);
+      return { ...display.workArea, screenWidth: display.bounds.width, screenHeight: display.bounds.height, scaleFactor: display.scaleFactor };
+    }
   } catch (_) {}
-  return screen.getPrimaryDisplay().workArea;
+  const display = screen.getPrimaryDisplay();
+  return { ...display.workArea, screenWidth: display.bounds.width, screenHeight: display.bounds.height, scaleFactor: display.scaleFactor };
 }
 
 function normalizeBounds(bounds) {
@@ -1298,6 +1302,7 @@ async function fetchChromeStoreIcon(storeId) {
 
 /** Theme chrome colors for fused title bar (shipping-app look). */
 const THEME_CHROME = {
+  'merge-gateway': { bg: '#ffffff', overlay: '#ffffff', symbol: '#080808' },
   'pixel-workstation': { bg: '#0c0f13', overlay: '#161c20', symbol: '#d1e5d4' },
   'nes-light': { bg: '#c2b59c', overlay: '#d0c4aa', symbol: '#27231b' },
   'element-admin': { bg: '#e8e8ed', overlay: '#f5f5f7', symbol: '#1d1d1f' },
@@ -1344,14 +1349,19 @@ function applyWindowChrome(win, themeId, colorMode) {
 async function createWindow() {
   const isMac = process.platform === 'darwin';
   const isWin = process.platform === 'win32';
-  const chrome = chromeForTheme('pixel-workstation');
+  const chrome = chromeForTheme('merge-gateway');
+  const workArea = pickWorkArea();
+  const width = Math.round(Math.min(1440, Math.max(720, workArea.width - 48), workArea.width));
+  const height = Math.round(Math.min(900, Math.max(560, workArea.height - 48), workArea.height));
 
   /** @type {Record<string, any>} */
   const options = {
-    width: 1280,
-    height: 860,
-    minWidth: 960,
-    minHeight: 680,
+    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    y: Math.round(workArea.y + (workArea.height - height) / 2),
+    width,
+    height,
+    minWidth: Math.min(960, width),
+    minHeight: Math.min(680, height),
     title: 'OpenBrowser',
     icon: (() => {
       // Window / taskbar: software pixel logo
@@ -1441,7 +1451,10 @@ app.whenReady().then(async () => {
   const localSettings = await loadLocalSettings();
   const initialRootCheck = await ensureDataRootIsolationSecure(localSettings.profileDataRoot);
   if (!initialRootCheck.ok) throw new Error(initialRootCheck.message);
-  engine = new BrowserEngine(app, { profileDataRoot: localSettings.profileDataRoot });
+  engine = new BrowserEngine(app, {
+    profileDataRoot: localSettings.profileDataRoot,
+    getWorkArea: pickWorkArea,
+  });
   liveSync = new LiveSyncController(engine, handleLiveSyncEvent);
   await engine.init(path.join(__dirname, 'bundled-extension'));
   try {
@@ -1753,6 +1766,10 @@ app.whenReady().then(async () => {
   });
 
   registerTrustedIpc('automation:local-api', () => automation?.info || null);
+  registerTrustedIpc('automation:local-api-key:set', async (_event, value) => {
+    if (!automation?.setApiKey) throw new Error('Local API is not ready');
+    return automation.setApiKey(value);
+  });
   registerTrustedIpc('automation:local-api-version', async () => {
     if (!automation?.localApi) throw new Error('Local API is not ready');
     return automation.localApi.route('GET', '/api/getVersion', {});

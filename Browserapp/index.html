@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN" data-ui-theme="pixel-workstation">
+<html lang="zh-CN" data-ui-theme="merge-gateway" data-xai-mode="console">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light">
   <title>OpenBrowser</title>
   <script src="i18n.js?v=20260720-aqua"></script>
   <link rel="icon" type="image/png" href="assets/logo-pixel.png?v=20260720-pixel">
@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="pixel-workstation.css?v=20260720-headerfix">
   <link rel="stylesheet" href="nes-light.css?v=20260720-kraft-desat33">
   <link rel="stylesheet" href="element-admin.css?v=20260720-start-progress">
+  <link rel="stylesheet" href="xai-console.css?v=20260815-alignment-pass">
 </head>
 <body>
   <div class="app-shell">
@@ -64,9 +65,10 @@
           <div class="theme-picker" id="theme-picker">
             <button class="theme-trigger" id="theme-trigger" type="button" aria-expanded="false" style="min-height: 28px;"><i class="theme-trigger-dot"></i><span data-i18n="header.theme">主题</span></button>
             <div class="theme-popover" id="theme-popover" hidden>
-              <div class="theme-popover-head"><strong data-i18n="theme.title">界面皮肤</strong><span id="theme-current" data-i18n="theme.pixel.name">像素工作站</span></div>
+              <div class="theme-popover-head"><strong data-i18n="theme.title">界面皮肤</strong><span id="theme-current">Merge Gateway</span></div>
               <div class="theme-grid" id="theme-options">
-                <button class="theme-option active" type="button" data-ui-theme-option="pixel-workstation" aria-pressed="true"><i></i><span><strong data-i18n="theme.pixel">像素工作站</strong><small data-i18n="theme.pixel.desc">深色像素界面</small></span></button>
+                <button class="theme-option active" type="button" data-ui-theme-option="merge-gateway" aria-pressed="true"><i></i><span><strong>Merge Gateway</strong><small>xAI Console</small></span></button>
+                <button class="theme-option" type="button" data-ui-theme-option="pixel-workstation" aria-pressed="false"><i></i><span><strong data-i18n="theme.pixel">像素工作站</strong><small data-i18n="theme.pixel.desc">深色像素界面</small></span></button>
                 <button class="theme-option" type="button" data-ui-theme-option="nes-light" aria-pressed="false"><i></i><span><strong data-i18n="theme.nes">浅色像素风</strong><small data-i18n="theme.nes.desc">浅色像素界面</small></span></button>
                 <button class="theme-option" type="button" data-ui-theme-option="retro-desktop" aria-pressed="false"><i></i><span><strong data-i18n="theme.retro">复古桌面</strong><small data-i18n="theme.retro.desc">经典系统界面</small></span></button>
                 <button class="theme-option" type="button" data-ui-theme-option="element-admin" aria-pressed="false"><i></i><span><strong data-i18n="theme.native">系统原生</strong><small data-i18n="theme.native.desc">macOS HIG · Windows Fluent</small></span></button>
@@ -100,7 +102,7 @@
               <button class="outline icon-apply" type="button" id="batch-assign-group-btn" title="应用分组"><i data-lucide="check"></i><span data-i18n="profiles.apply">应用</span></button><button class="danger" id="delete-selected"><i data-lucide="trash-2"></i><span data-i18n="profiles.batchDelete">批量删除</span></button></div>
           </div>
           <div class="table-card">
-            <table class="profile-table-compact"><thead><tr><th class="col-check"><input type="checkbox" id="select-all-profiles"></th><th class="col-num" data-i18n="profiles.col.num">编号</th><th class="col-name" data-i18n="profiles.col.name">环境名称</th><th class="col-group" data-i18n="profiles.col.group">分组</th><th class="col-browser" data-i18n="profiles.col.browser">内核</th><th class="col-network" data-i18n="profiles.col.network">网络</th><th class="col-exit" data-i18n="profiles.col.exit">出口</th><th class="col-ext" data-i18n="profiles.col.ext">扩展</th><th class="col-status" data-i18n="profiles.col.status">状态</th><th class="col-actions" data-i18n="profiles.col.actions">操作</th></tr></thead><tbody id="profile-table"></tbody></table>
+            <table class="profile-table-compact"><thead><tr><th class="col-check"><input type="checkbox" id="select-all-profiles"></th><th class="col-num" data-i18n="profiles.col.num">编号</th><th class="col-profile-id" data-i18n="profiles.col.profileId">Profile ID</th><th class="col-name" data-i18n="profiles.col.name">环境名称</th><th class="col-group" data-i18n="profiles.col.group">分组</th><th class="col-browser" data-i18n="profiles.col.browser">内核</th><th class="col-network" data-i18n="profiles.col.network">网络</th><th class="col-exit" data-i18n="profiles.col.exit">出口</th><th class="col-ext" data-i18n="profiles.col.ext">扩展</th><th class="col-status" data-i18n="profiles.col.status">状态</th><th class="col-actions" data-i18n="profiles.col.actions">操作</th></tr></thead><tbody id="profile-table"></tbody></table>
             <div class="empty" id="profile-empty" hidden data-i18n="profiles.empty">暂无环境</div>
           </div>
           <div class="profile-pagination toolbar-pagination" id="profile-pagination"><span class="profile-total"><span data-i18n="profiles.totalLabel">总数：</span><strong id="profile-total">0</strong></span><div class="profile-page-nav"><button type="button" id="profile-prev" aria-label="&#19978;&#19968;&#39029;">&#8249;</button><label><input id="profile-page" type="number" min="1" value="1" aria-label="&#24403;&#21069;&#39029;"> / <span id="profile-pages">1</span></label><button type="button" id="profile-next" aria-label="&#19979;&#19968;&#39029;">&#8250;</button></div><label class="profile-page-size"><select id="profile-page-size" aria-label="&#27599;&#39029;&#25968;&#37327;"><option value="10">10&#26465;/&#39029;</option><option value="20">20&#26465;/&#39029;</option><option value="50">50&#26465;/&#39029;</option><option value="100">100&#26465;/&#39029;</option></select></label></div>
@@ -333,7 +335,7 @@
                   <label class="check-row" style="margin:0"><input id="editor-geo-from-ip" type="checkbox" checked> 基于 IP 生成坐标</label>
                 </div>
                 <div class="form-three geo-custom"><label>纬度<input id="editor-latitude" type="number" step="0.000001" min="-90" max="90"></label><label>经度<input id="editor-longitude" type="number" step="0.000001" min="-180" max="180"></label><label>精度（米）<input id="editor-accuracy" type="number" min="1" max="100000" value="100"></label></div>
-                <div class="settings-row"><span>分辨率</span><select id="editor-resolution"><option value="1280x820">1280 × 820</option><option value="1366x768">1366 × 768</option><option value="1440x900">1440 × 900</option><option value="1920x1080">1920 × 1080</option><option value="custom">自定义</option></select><input id="editor-width" type="number" min="640" max="7680" placeholder="宽"><input id="editor-height" type="number" min="480" max="4320" placeholder="高"></div>
+                <div class="settings-row"><span>分辨率</span><select id="editor-resolution"><option value="auto">跟随当前电脑</option><option value="1280x820">1280 × 820</option><option value="1366x768">1366 × 768</option><option value="1440x900">1440 × 900</option><option value="1920x1080">1920 × 1080</option><option value="custom">自定义</option></select><input id="editor-width" type="number" min="640" max="7680" placeholder="宽"><input id="editor-height" type="number" min="480" max="4320" placeholder="高"></div>
                 <div class="settings-row"><span>字体</span><select id="editor-font-mode"><option value="default">系统默认</option><option value="custom">自定义字号</option></select><input id="editor-font-size" type="number" min="9" max="36" value="16"></div>
                 <div class="settings-row"><span>WebRTC</span><select id="editor-webrtc"><option value="proxy">替换（仅代理）</option><option value="real">真实</option><option value="disabled">禁用</option></select></div>
                 <div class="privacy-grid">
@@ -812,7 +814,9 @@
               </div>
               <div class="rpa-row">
                 <span class="rpa-label">API Key</span>
-                <input class="rpa-input" id="api-key-display" readonly value="" placeholder="未设置（可选环境变量 OPENBROWSER_API_KEY）">
+                <input class="rpa-input" id="api-key-display" value="" minlength="16" maxlength="256" autocomplete="off" spellcheck="false" placeholder="至少 16 个字符">
+                <button type="button" class="outline" id="api-key-save"><i data-lucide="save"></i>保存</button>
+                <button type="button" class="outline" id="api-key-generate"><i data-lucide="refresh-cw"></i>重新生成</button>
               </div>
               <pre class="rpa-code-block" id="api-test-output">点击「测试」请求 /api/getVersion</pre>
             </div>

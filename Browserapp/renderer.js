@@ -270,6 +270,11 @@ function normalizeProfileSettings(profile) {
   const proxyMeta = value.proxyMeta && typeof value.proxyMeta === 'object' ? value.proxyMeta : {};
   const platform = value.platform && typeof value.platform === 'object' ? value.platform : {};
   const number = positiveProfileNumber(value.number);
+  const hasSavedResolution = Number(value.width) >= 640 && Number(value.height) >= 480;
+  const screenModeValue = value.screenMode || value.screen_mode;
+  const screenMode = ['auto', 'custom'].includes(String(screenModeValue || ''))
+    ? String(screenModeValue)
+    : (hasSavedResolution ? 'custom' : 'auto');
   const rawProxy = String(value.proxy || '').trim();
   const legacyDemoProxy = value.networkMode == null && value.id === 'env-004' && rawProxy === '127.0.0.1:7890';
   const networkMode = value.networkMode === 'direct' || legacyDemoProxy || !rawProxy || /^(direct|offline|none)$/i.test(rawProxy)
@@ -290,6 +295,7 @@ function normalizeProfileSettings(profile) {
     note: String(value.note || ''),
     tag: String(value.tag || ''),
     groupId: value.groupId == null || value.groupId === undefined ? UNGROUPED_ID : String(value.groupId || ''),
+    screenMode,
     width: Number(value.width) >= 640 ? Number(value.width) : 1280,
     height: Number(value.height) >= 480 ? Number(value.height) : 820,
     platform: {
@@ -883,6 +889,7 @@ async function applySyncSettings(value, announce = false) {
 const UI_THEME_KEY = 'openbrowser-ui-skin-v1';
 const UI_COLOR_MODE_KEY = 'openbrowser-ui-color-mode-v1';
 const UI_THEMES = Object.freeze({
+  'merge-gateway': { colorScheme: 'light' },
   'retro-desktop': { nameKey: 'theme.retro.name', colorScheme: 'light' },
   'pixel-workstation': { nameKey: 'theme.pixel.name', colorScheme: 'dark' },
   'nes-light': { nameKey: 'theme.nes.name', colorScheme: 'light' },
@@ -890,6 +897,7 @@ const UI_THEMES = Object.freeze({
 });
 
 function themeDisplayName(theme) {
+  if (theme === 'merge-gateway') return 'Merge Gateway';
   const def = UI_THEMES[theme];
   return def?.nameKey ? t(def.nameKey) : theme;
 }
@@ -1265,7 +1273,7 @@ function applyColorMode(pref, persist = true) {
   if (persist) {
     try { localStorage.setItem(UI_COLOR_MODE_KEY, uiColorPreference); } catch (_) {}
   }
-  const theme = document.documentElement.dataset.uiTheme || 'pixel-workstation';
+  const theme = document.documentElement.dataset.uiTheme || 'merge-gateway';
   const definition = UI_THEMES[theme];
   if (theme === 'element-admin') {
     document.documentElement.style.colorScheme = uiColorMode;
@@ -1284,9 +1292,9 @@ function applyColorMode(pref, persist = true) {
 
 function applyUiTheme(value, persist = true) {
   closeSelectMenu();
-  // Pixel Workstation is the default; saved selections for the other skins remain supported.
+  // Merge Gateway is the default; saved selections for the other skins remain supported.
   if (value === 'anime-dream') value = 'element-admin';
-  const theme = Object.hasOwn(UI_THEMES, value) ? value : 'pixel-workstation';
+  const theme = Object.hasOwn(UI_THEMES, value) ? value : 'merge-gateway';
   const definition = UI_THEMES[theme];
   document.documentElement.dataset.uiTheme = theme;
   const effectiveScheme = theme === 'element-admin' ? uiColorMode : definition.colorScheme;
@@ -1320,15 +1328,15 @@ function applyUiTheme(value, persist = true) {
   });
 }
 
-let savedUiTheme = 'pixel-workstation';
+let savedUiTheme = 'merge-gateway';
 try {
-  savedUiTheme = localStorage.getItem(UI_THEME_KEY) || 'pixel-workstation';
-  const migrated = localStorage.getItem('openbrowser-ui-skin-pixel-default-v1');
-  if (!migrated && (savedUiTheme === 'retro-desktop' || savedUiTheme === 'element-admin')) {
-    savedUiTheme = 'pixel-workstation';
+  savedUiTheme = localStorage.getItem(UI_THEME_KEY) || 'merge-gateway';
+  const migrated = localStorage.getItem('openbrowser-ui-skin-merge-default-v1');
+  if (!migrated && savedUiTheme === 'pixel-workstation') {
+    savedUiTheme = 'merge-gateway';
     localStorage.setItem(UI_THEME_KEY, savedUiTheme);
   }
-  localStorage.setItem('openbrowser-ui-skin-pixel-default-v1', '1');
+  localStorage.setItem('openbrowser-ui-skin-merge-default-v1', '1');
 } catch (_) {}
 applyUiTheme(savedUiTheme, false);
 // UI language: default = system; user can pin en/zh/ja/vi/fr/de/th/id
@@ -1336,7 +1344,7 @@ try {
   refreshLocaleChrome();
   window.OpenBrowserI18n?.onChange?.((resolved) => {
     refreshLocaleChrome();
-    applyUiTheme(document.documentElement.dataset.uiTheme || 'pixel-workstation', false);
+    applyUiTheme(document.documentElement.dataset.uiTheme || 'merge-gateway', false);
     const activeView = document.querySelector('.view.active')?.id?.replace(/^view-/, '') || 'profiles';
     if (typeof switchView === 'function') switchView(activeView);
     if (typeof renderProfiles === 'function') renderProfiles();
@@ -1446,10 +1454,11 @@ function serializeEditorProxy(strict = true) {
 
 function editorResolution() {
   const selected = $('#editor-resolution').value;
-  if (selected !== 'custom') { const [width, height] = selected.split('x').map(Number); return { width, height }; }
+  if (selected === 'auto') return { screenMode: 'auto', width: Math.max(640, screen.availWidth || 1280), height: Math.max(480, screen.availHeight || 820) };
+  if (selected !== 'custom') { const [width, height] = selected.split('x').map(Number); return { screenMode: 'custom', width, height }; }
   const width = Number($('#editor-width').value); const height = Number($('#editor-height').value);
   if (!Number.isInteger(width) || width < 640 || width > 7680 || !Number.isInteger(height) || height < 480 || height > 4320) throw new Error(tx('请填写有效的窗口宽度和高度'));
-  return { width, height };
+  return { screenMode: 'custom', width, height };
 }
 
 function editorCookies() {
@@ -1461,11 +1470,13 @@ function editorCookies() {
 
 function editorDraft(strict = true) {
   const current = ui.profiles.find((item) => item.id === editingProfileId) || {};
-  let resolution = { width: Number($('#editor-width')?.value) || current.width || 1280, height: Number($('#editor-height')?.value) || current.height || 820 };
+  let resolution = { screenMode: current.screenMode || 'auto', width: Number($('#editor-width')?.value) || current.width || 1280, height: Number($('#editor-height')?.value) || current.height || 820 };
   if (strict) resolution = editorResolution();
-  else if ($('#editor-resolution')?.value && $('#editor-resolution').value !== 'custom') {
+  else if ($('#editor-resolution')?.value === 'auto') {
+    resolution = { screenMode: 'auto', width: current.width || 1280, height: current.height || 820 };
+  } else if ($('#editor-resolution')?.value && $('#editor-resolution').value !== 'custom') {
     const values = $('#editor-resolution').value.split('x').map(Number);
-    resolution = { width: values[0], height: values[1] };
+    resolution = { screenMode: 'custom', width: values[0], height: values[1] };
   }
   const tabMode = document.querySelector('input[name="editor-tab-mode"]:checked')?.value || 'fixed';
   const dntMode = $('#editor-dnt-mode')?.value || 'default';
@@ -1603,6 +1614,7 @@ function editorDraft(strict = true) {
     note: ($('#editor-note')?.value || '').trim(),
     networkMode: editorSelectedNetwork() === 'direct' ? 'direct' : 'proxy',
     proxy: serializeEditorProxy(strict),
+    screenMode: resolution.screenMode,
     width: resolution.width,
     height: resolution.height,
     platform: {
@@ -1695,7 +1707,7 @@ function renderEditorSummary() {
   const values = [
     [tx('浏览器'), 'Google Chrome'], [tx('分组'), groupNameOf(draft)], ['User-Agent', draft.userAgent || 'Chrome 默认'], [tx('网络'), maskProxy(draft.proxy)], ['WebRTC', labels.webrtc[privacy.webrtc]],
     [tx('时区'), labels.timezoneMode[privacy.timezoneMode]], [tx('地理位置'), labels.geoMode[privacy.geoMode]], [tx('语言'), draft.language], [tx('界面语言'), privacy.uiLanguage === 'profile' ? '跟随语言' : privacy.uiLanguage],
-    [tx('分辨率'), draft.width + ' × ' + draft.height], [tx('字体'), privacy.fontMode === 'custom' ? privacy.fontSize + 'px' : '默认'], ['Canvas', labels.canvas[privacy.canvas]],
+    [tx('分辨率'), draft.screenMode === 'auto' ? tx('跟随当前电脑') : draft.width + ' × ' + draft.height], [tx('字体'), privacy.fontMode === 'custom' ? privacy.fontSize + 'px' : '默认'], ['Canvas', labels.canvas[privacy.canvas]],
     ['WebGL', labels.webgl[privacy.webgl]], ['WebGPU', privacy.webgpu === 'blocked' ? '禁用' : (privacy.webgpu === 'webgl' ? '基于 WebGL' : '真实')], ['AudioContext', labels.audio[privacy.audio]], [tx('媒体设备'), labels.media[privacy.media]],
     [tx('电池'), privacy.battery === 'blocked' ? '关闭' : (privacy.battery === 'real' ? '真实' : '随机')],
     [tx('站点稳定性'), privacy.stabilityMode === 'force' ? '强制' : (privacy.stabilityMode === 'off' ? '关闭' : '自动')],
@@ -1815,7 +1827,7 @@ function openProfileEditor(id) {
   }
   editorCheck('#editor-geo-from-ip', privacy.geoFromIp !== false);
   const resolutionKey = profile.width + 'x' + profile.height;
-  const resolution = ['1280x820', '1366x768', '1440x900', '1920x1080'].includes(resolutionKey) ? resolutionKey : 'custom';
+  const resolution = profile.screenMode === 'auto' ? 'auto' : (['1280x820', '1366x768', '1440x900', '1920x1080'].includes(resolutionKey) ? resolutionKey : 'custom');
   editorSet('#editor-resolution', resolution);
   editorSet('#editor-width', profile.width);
   editorSet('#editor-height', profile.height);
@@ -2009,7 +2021,7 @@ async function refreshEditorProxy() {
 
 function useSystemEditorDefaults() {
   editorSet('#editor-user-agent', ''); editorSet('#editor-timezone-mode', 'real'); editorSet('#editor-timezone', Intl.DateTimeFormat().resolvedOptions().timeZone || ''); editorSet('#editor-geo-mode', 'disabled'); editorSet('#editor-ui-language', 'system');
-  editorSet('#editor-resolution', 'custom'); editorSet('#editor-width', Math.max(640, screen.availWidth || 1280)); editorSet('#editor-height', Math.max(480, screen.availHeight || 820));
+  editorSet('#editor-resolution', 'auto'); editorSet('#editor-width', Math.max(640, screen.availWidth || 1280)); editorSet('#editor-height', Math.max(480, screen.availHeight || 820));
   editorSet('#editor-webrtc', 'real'); editorSet('#editor-canvas', 'real'); editorSet('#editor-webgl', 'real'); editorSet('#editor-webgpu', 'real'); editorSet('#editor-audio', 'real'); editorSet('#editor-media', 'real'); editorSet('#editor-speech', 'real');
   updateEditorVisibility(); renderEditorSummary(); toast(tx('已读取本机安全默认值'));
   refreshUaMetaPreview().catch(() => {});
@@ -2545,6 +2557,8 @@ function renderProfiles() {
     row.dataset.profileId = profile.id;
     const selectCell = document.createElement('td'); const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = selectedProfiles.has(profile.id); checkbox.dataset.profileSelect = profile.id; selectCell.append(checkbox);
     const idCell = element('td', 'col-num', displayProfileNumber(profile));
+    const profileIdCell = element('td', 'col-profile-id', profile.id);
+    profileIdCell.title = profile.id;
     const nameCell = document.createElement('td');
     nameCell.append(buildEnvIdentity(profile));
     const groupCell = document.createElement('td');
@@ -2602,9 +2616,10 @@ function renderProfiles() {
       toggle.title = startProgressLabel(startingProfiles.get(profile.id));
     }
     const sync = element('button', 'mini blue', t('action.sync')); sync.dataset.action = 'select-sync'; sync.dataset.id = profile.id; sync.disabled = !info.running || starting; sync.title = t('profiles.syncSelect');
+    const copy = element('button', 'mini', t('action.copy')); copy.dataset.action = 'copy'; copy.dataset.id = profile.id;
     const edit = element('button', 'mini edit', t('action.edit')); edit.dataset.action = 'edit'; edit.dataset.id = profile.id;
-    actions.append(toggle, sync, edit); actionCell.append(actions);
-    row.append(selectCell, idCell, nameCell, groupCell, browserCell, proxyCell, networkCell, extensionCell, statusCell, actionCell); table.append(row);
+    actions.append(toggle, sync, copy, edit); actionCell.append(actions);
+    row.append(selectCell, idCell, profileIdCell, nameCell, groupCell, browserCell, proxyCell, networkCell, extensionCell, statusCell, actionCell); table.append(row);
   }
   $('#profile-empty').hidden = filtered.length !== 0;
   $('#profile-total').textContent = String(filtered.length);
@@ -2719,6 +2734,21 @@ async function startProfile(id) {
 async function stopProfile(id) {
   try { await window.ops.stopProfile(id); const profile = ui.profiles.find((item) => item.id === id); log('Browser', `${profile?.name || id} 已停止`); await refreshStatus(); await refreshSessions(); }
   catch (error) { log('Error', error.message); toast(tx(`停止失败：${error.message}`)); }
+}
+
+async function copyProfile(id) {
+  const source = ui.profiles.find((profile) => profile.id === id); if (!source) return;
+  const number = nextProfileNumber(); const previousNext = ui.nextProfileNumber;
+  const copy = JSON.parse(JSON.stringify(source));
+  Object.assign(copy, { id: createInternalProfileId(number), number, name: String(number), cookies: '', updatedAt: new Date().toISOString() });
+  for (const key of ['exitIp', 'exitCountryCode', 'exitTimezone', 'exitLatitude', 'exitLongitude', 'exitCheckedAt', 'exitLatencyMs', 'exitNetworkType']) delete copy[key];
+  ui.profiles.push(copy); ui.nextProfileNumber = number + 1; save();
+  try {
+    engineProfiles = await window.ops.syncProfiles(ui.profiles); renderProfiles();
+    log('Profile', '复制环境 ' + displayProfileNumber(source) + ' → ' + number); toast(t('profiles.copySuccess', { n: number }));
+  } catch (error) {
+    ui.profiles = ui.profiles.filter((profile) => profile.id !== copy.id); ui.nextProfileNumber = previousNext; save(); toast(tx('复制失败：' + error.message));
+  }
 }
 
 async function checkProfileProxy(id) {
@@ -3405,6 +3435,7 @@ document.addEventListener('click', async (event) => {
   const action = event.target.closest('[data-action]');
   if (action?.dataset.action === 'start') startProfile(action.dataset.id);
   if (action?.dataset.action === 'stop') stopProfile(action.dataset.id);
+  if (action?.dataset.action === 'copy') copyProfile(action.dataset.id);
   if (action?.dataset.action === 'edit') openProfileEditor(action.dataset.id);
   if (action?.dataset.action === 'select-sync') { selectedSessions.add(action.dataset.id); pushSyncSelection(); switchView('sync'); }
 
@@ -5127,6 +5158,31 @@ function setLocalApiStatus(running) {
 }
 
 document.getElementById('api-refresh')?.addEventListener('click', refreshApiMcpPage);
+async function saveLocalApiKey(value) {
+  const saveButton = document.getElementById('api-key-save');
+  const generateButton = document.getElementById('api-key-generate');
+  if (saveButton) saveButton.disabled = true;
+  if (generateButton) generateButton.disabled = true;
+  try {
+    await window.ops.setLocalApiKey(value);
+    await refreshApiMcpPage();
+    toast(tx('API Key 已保存，旧密钥已失效'));
+  } catch (error) { toast('保存失败：' + error.message); }
+  finally {
+    if (saveButton) saveButton.disabled = false;
+    if (generateButton) generateButton.disabled = false;
+  }
+}
+document.getElementById('api-key-save')?.addEventListener('click', () => {
+  saveLocalApiKey(document.getElementById('api-key-display')?.value || '');
+});
+document.getElementById('api-key-generate')?.addEventListener('click', () => {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const key = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const input = document.getElementById('api-key-display');
+  if (input) input.value = key;
+  saveLocalApiKey(key);
+});
 document.getElementById('api-copy-base')?.addEventListener('click', async () => {
   const url = document.getElementById('api-status-url')?.textContent || '';
   try { await navigator.clipboard.writeText(url); toast(tx('已复制')); } catch (_) { toast(url); }

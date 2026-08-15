@@ -12,13 +12,14 @@ const {
   buildFingerprint,
   buildInjectionScript,
   buildWorkerInjectionScript,
+  applyFingerprintToTab,
 } = require('./automation/fingerprint');
 const {
   fingerprintForNativeKernelInject,
   mapFingerprintToInitFields,
 } = require('./automation/kernel-init-sync');
 
-function main() {
+async function main() {
   // --- engine start order: inject before keepDefaultTab ---
   const engineSrc = fs.readFileSync(path.join(__dirname, 'engine.js'), 'utf8');
   const startIdx = engineSrc.indexOf('item.startupExtensionGuard');
@@ -42,6 +43,17 @@ function main() {
   assert.ok(!/Runtime\.evaluate[\s\S]{0,80}\.catch\(\(\) => \{\}\)/.test(
     fpSrc.slice(fpSrc.indexOf('async function applyFingerprintToTab'))
   ), 'Runtime.evaluate must not swallow inject errors');
+
+  // Auto screen mode must use Chromium's real content area instead of fixing the
+  // page viewport to the monitor dimensions. Custom mode keeps fixed metrics.
+  const viewportFp = buildFingerprint({ id: 'viewport-env', width: 1600, height: 900 });
+  const autoCalls = [];
+  await applyFingerprintToTab(async (method, params) => autoCalls.push({ method, params }), null, viewportFp, { screenMode: 'auto' });
+  assert.ok(autoCalls.some(({ method }) => method === 'Emulation.clearDeviceMetricsOverride'), 'auto mode clears fixed viewport metrics');
+  assert.ok(!autoCalls.some(({ method }) => method === 'Emulation.setDeviceMetricsOverride'), 'auto mode does not fix the page viewport');
+  const customCalls = [];
+  await applyFingerprintToTab(async (method, params) => customCalls.push({ method, params }), null, viewportFp, { screenMode: 'custom' });
+  assert.ok(customCalls.some(({ method }) => method === 'Emulation.setDeviceMetricsOverride'), 'custom mode keeps fixed viewport metrics');
 
   // --- start-page re-samples fingerprint after inject settle ---
   const tpl = fs.readFileSync(path.join(__dirname, 'automation/start-page-template.js'), 'utf8');
@@ -96,4 +108,7 @@ function main() {
   console.log('fingerprint-inject-order-selftest: ok');
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

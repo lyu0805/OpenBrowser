@@ -164,6 +164,7 @@ class BrowserEngine {
     this.app = app;
     this.profiles = new Map();
     this.running = new Map();
+    this.starting = new Map();
     this.networkInfo = new Map();
     this.extensions = new Map();
     this.assignments = new Map();
@@ -200,6 +201,7 @@ class BrowserEngine {
     this.systemBrowserPath = null;
     this.kernelBootstrapPromise = null;
     this.startPageServer = null;
+    this.getWorkArea = options.getWorkArea || (() => null);
   }
 
   async ensureStartPage() {
@@ -356,6 +358,8 @@ class BrowserEngine {
     const platformValue = value.platform && typeof value.platform === 'object' ? value.platform : {};
     const allowed = (candidate, values, fallback) => values.includes(String(candidate || '')) ? String(candidate) : fallback;
     const finite = (candidate) => candidate !== '' && candidate !== null && candidate !== undefined && Number.isFinite(Number(candidate)) ? Number(candidate) : null;
+    const hasExplicitSize = Number(value.width) >= 640 && Number(value.height) >= 480;
+    const screenMode = allowed(value.screenMode || value.screen_mode, ['auto', 'custom'], hasExplicitSize ? 'custom' : 'auto');
     const width = Math.min(7680, Math.max(640, Number(value.width) || 1280)); const height = Math.min(4320, Math.max(480, Number(value.height) || 820));
     const number = Number.parseInt(value.number, 10);
     const parseLimitedOption = (candidate, values) => {
@@ -382,7 +386,7 @@ class BrowserEngine {
       tag: String(value.tag || '').slice(0, 40),
       groupId: String(value.groupId || '').slice(0, 64),
       group_name: String(value.group_name || value.groupName || '').slice(0, 40),
-      language: String(value.language || 'en-US').slice(0, 20), width, height,
+      language: String(value.language || 'en-US').slice(0, 20), screenMode, width, height,
       userAgent: String(value.userAgent || '').replace(/[\r\n]/g, ' ').slice(0, 1000), cookies: String(value.cookies || '').slice(0, 500000), note: String(value.note || '').slice(0, 2000),
       exitIp: String(value.exitIp || '').slice(0, 80), exitCountryCode: String(value.exitCountryCode || '').slice(0, 4), exitTimezone: String(value.exitTimezone || '').slice(0, 100),
       exitLatitude: finite(value.exitLatitude), exitLongitude: finite(value.exitLongitude),
@@ -1722,20 +1726,24 @@ class BrowserEngine {
       }
     };
     const tryReadPort = async () => {
+      const candidates = [];
       try {
         const content = await fsp.readFile(file, 'utf8');
         const port = Number(content.split(/\r?\n/)[0]);
-        if (Number.isInteger(port) && port > 0) {
-          try {
-            await cdp.json(`http://127.0.0.1:${port}/json/version`);
-            return port;
-          } catch (_) {
-            // File is written slightly before the DevTools endpoint answers. Measured on a
-            // real launch that gap is ~600ms of Chromium coming up, not idle polling — a
-            // tighter retry loop here was tried and bought nothing, so keep it simple.
-          }
-        }
+        if (Number.isInteger(port) && port > 0) candidates.push(port);
       } catch (_) {}
+      const announced = String(child?._startupDiagnostic?.stderr || '').match(
+        /DevTools listening on ws:\/\/(?:127\.0\.0\.1|localhost|\[::1\]):(\d+)\//
+      );
+      if (announced) candidates.push(Number(announced[1]));
+      for (const port of new Set(candidates)) {
+        try {
+          await cdp.json(`http://127.0.0.1:${port}/json/version`);
+          return port;
+        } catch (_) {
+          // Chromium may announce/write the port slightly before the endpoint answers.
+        }
+      }
       return 0;
     };
     // Event-driven fast path: watch the profile dir so we react ~1 tick after Chromium
@@ -1792,6 +1800,20 @@ class BrowserEngine {
   }
 
   async start(raw) {
+    const id = String(raw?.id || '').trim();
+    if (!id) return this._start(raw);
+    const pending = this.starting.get(id);
+    if (pending) return pending;
+    const promise = this._start(raw);
+    this.starting.set(id, promise);
+    try {
+      return await promise;
+    } finally {
+      if (this.starting.get(id) === promise) this.starting.delete(id);
+    }
+  }
+
+  async _start(raw) {
     // let: language/timezone resolution reassigns profile via applyResolvedLocale
     let profile = this.sanitizeProfile(raw); this.profiles.set(profile.id, profile);
     if (this.running.has(profile.id)) {
@@ -1852,8 +1874,31 @@ class BrowserEngine {
     const proxyConfig = this.proxyConfig(profile.proxy);
     // Site-stability keeps static marks; refresh-on-start only when stability is off.
     const allowSeedRefresh = profile.privacy.refreshFingerprintOnStart && profile.privacy.stabilityMode === 'off';
-    const fingerprint = buildFingerprint({
+    const workArea = this.getWorkArea();
+    const autoScreen = profile.screenMode === 'auto' && workArea?.width && workArea?.height;
+    const fingerprintProfile = autoScreen ? {
       ...profile,
+      width: Math.max(640, Number(workArea.screenWidth) || workArea.width),
+      height: Math.max(480, Number(workArea.screenHeight) || workArea.height),
+      privacy: {
+        ...profile.privacy,
+        fingerprint: {
+          ...(profile.privacy?.fingerprint || {}),
+          screenWidth: Math.max(640, Number(workArea.screenWidth) || workArea.width),
+          screenHeight: Math.max(480, Number(workArea.screenHeight) || workArea.height),
+          availLeft: workArea.x,
+          availTop: workArea.y,
+          availWidth: workArea.width,
+          availHeight: workArea.height,
+          screenX: workArea.x + 16,
+          screenY: workArea.y + 16,
+          devicePixelRatio: Math.max(1, Number(workArea.scaleFactor) || 1),
+          taskbarHeight: Math.max(0, (Number(workArea.screenHeight) || workArea.height) - workArea.height),
+        },
+      },
+    } : profile;
+    const fingerprint = buildFingerprint({
+      ...fingerprintProfile,
       fingerprintLaunchSeed: allowSeedRefresh ? crypto.randomBytes(16).toString('hex') : '',
       kernelVersion: browser.version,
       exitTimezone: profile.exitTimezone || pageNetwork.timezone || '',
@@ -1892,8 +1937,26 @@ class BrowserEngine {
       '--remote-allow-origins=http://127.0.0.1,http://localhost',
     ];
     // Fingerprint chrome flags (UA / webrtc / webgl / lang / window-size)
-    for (const flag of chromeArgsForFingerprint(fingerprint, profile)) {
+    for (const flag of chromeArgsForFingerprint(fingerprint, fingerprintProfile)) {
       if (!args.some((a) => a.split('=')[0] === flag.split('=')[0])) args.push(flag);
+    }
+    let windowWidth = profile.width;
+    let windowHeight = profile.height;
+    if (workArea?.width && workArea?.height) {
+      const maxWidth = Math.max(640, workArea.width - 32);
+      const maxHeight = Math.max(480, workArea.height - 32);
+      if (autoScreen) {
+        windowWidth = maxWidth;
+        windowHeight = maxHeight;
+      } else {
+        const scale = Math.min(1, maxWidth / profile.width, maxHeight / profile.height);
+        windowWidth = Math.round(profile.width * scale);
+        windowHeight = Math.round(profile.height * scale);
+      }
+      const size = `--window-size=${windowWidth},${windowHeight}`;
+      const index = args.findIndex((arg) => arg.startsWith('--window-size='));
+      if (index >= 0) args[index] = size;
+      else args.push(size);
     }
     // openbrowser-148: write profile/init.json so Framework native FP matches buildFingerprint
     let runtimeFingerprint = fingerprint;
@@ -2066,6 +2129,14 @@ class BrowserEngine {
       this.emitStartProgress(profile.id, 'cdp', 76, '正在等待调试端口…');
       port = await this.waitForPort(root, 30000, child);
       connection = await portConnection(port);
+      if (workArea?.width && workArea?.height) {
+        await cdp.setWindowBounds(port, {
+          left: workArea.x + 16,
+          top: workArea.y + 16,
+          width: windowWidth,
+          height: windowHeight,
+        }).catch(() => {});
+      }
     } catch (error) {
       const diagnostic = child?._startupDiagnostic || { launchBinary, profileRoot: root };
       await writeBrowserStartupDiagnostic(this.app.getPath('userData'), {

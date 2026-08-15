@@ -2206,7 +2206,11 @@ async function applyFingerprintToTab(cdpCall, webSocketDebuggerUrl, fp, profile 
       userAgentMetadata: override.userAgentMetadata,
     });
   }
-  if (fp.screen) {
+  if (profile.screenMode === 'auto') {
+    // Let Chromium derive the page viewport from the real browser client area.
+    // Using the full monitor size here leaves tabs/toolbars out of the equation.
+    await softOverride('Emulation.clearDeviceMetricsOverride', {});
+  } else if (fp.screen) {
     await softOverride('Emulation.setDeviceMetricsOverride', {
       width: fp.screen.width,
       height: fp.screen.height,
