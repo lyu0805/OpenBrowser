@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="pixel-workstation.css?v=20260720-headerfix">
   <link rel="stylesheet" href="nes-light.css?v=20260720-kraft-desat33">
   <link rel="stylesheet" href="element-admin.css?v=20260720-start-progress">
-  <link rel="stylesheet" href="xai-console.css?v=20260815-alignment-pass">
+  <link rel="stylesheet" href="xai-console.css?v=20260820-editor-workbench">
 </head>
 <body>
   <div class="app-shell">
@@ -131,13 +131,13 @@
         <section class="view" id="view-profile-editor">
           <div class="profile-editor-head">
             <button class="editor-back" id="editor-back" type="button">‹ 返回</button>
-            <div><h2>修改环境 <span id="editor-profile-id"></span></h2><p>平台账号 · 代理 · 指纹 · 偏好 — 前后端完整生效；可配合云备份跨设备恢复</p></div>
+            <div><h2>编辑环境 <span id="editor-profile-id"></span></h2><p>平台账号 · 代理 · 指纹 · 偏好 — 前后端完整生效；可配合云备份跨设备恢复</p></div>
           </div>
           <div class="editor-tabs" role="tablist" aria-label="环境配置分类">
-            <button class="active" id="editor-tab-basic" type="button" role="tab" aria-selected="true" aria-controls="editor-panel-basic" tabindex="0" data-editor-tab="basic">平台账号配置</button>
-            <button id="editor-tab-proxy" type="button" role="tab" aria-selected="false" aria-controls="editor-panel-proxy" tabindex="-1" data-editor-tab="proxy">代理配置</button>
-            <button id="editor-tab-privacy" type="button" role="tab" aria-selected="false" aria-controls="editor-panel-privacy" tabindex="-1" data-editor-tab="privacy">指纹配置</button>
-            <button id="editor-tab-advanced" type="button" role="tab" aria-selected="false" aria-controls="editor-panel-advanced" tabindex="-1" data-editor-tab="advanced">偏好设置</button>
+            <button class="active" id="editor-tab-basic" type="button" role="tab" aria-selected="true" aria-controls="editor-panel-basic" tabindex="0" data-editor-tab="basic">平台账号</button>
+            <button id="editor-tab-proxy" type="button" role="tab" aria-selected="false" aria-controls="editor-panel-proxy" tabindex="-1" data-editor-tab="proxy">代理</button>
+            <button id="editor-tab-privacy" type="button" role="tab" aria-selected="false" aria-controls="editor-panel-privacy" tabindex="-1" data-editor-tab="privacy">指纹</button>
+            <button id="editor-tab-advanced" type="button" role="tab" aria-selected="false" aria-controls="editor-panel-advanced" tabindex="-1" data-editor-tab="advanced">偏好</button>
           </div>
           <div class="environment-editor">
             <form id="profile-editor-form" class="editor-form">
@@ -301,7 +301,7 @@
                   <button type="button" class="outline" id="editor-ua-generate">按系统生成 UA</button>
                   <button type="button" class="outline" id="editor-ua-random">随机 UA</button>
                   <button type="button" class="outline" id="editor-ua-clear">跟随自动</button>
-                  <label class="ua-ver">Chrome 主版本 <input class="ua-version-input" id="editor-ua-chrome-major" type="number" min="100" max="200" value="131"></label>
+                  <label class="ua-ver">Chrome 主版本 <input class="ua-version-input" id="editor-ua-chrome-major" type="number" min="100" max="200" placeholder="跟随内核"></label>
                 </div>
                 <pre class="ua-meta-preview" id="editor-ua-meta" hidden></pre>
                 <div class="settings-row"><span data-i18n="editor.langMode">浏览器语言</span>
@@ -495,11 +495,11 @@
               </section>
               <div class="editor-actions">
                 <span class="editor-save-state" id="editor-save-state" role="status" aria-live="polite" data-state="saved">已保存</span>
-                <div class="editor-action-buttons"><button class="outline" id="editor-cancel" type="button">取消</button><button class="primary" id="editor-save" type="submit">立即保存</button></div>
+                <div class="editor-action-buttons"><button class="outline" id="editor-cancel" type="button">取消</button><button class="primary" id="editor-save" type="submit">保存</button></div>
               </div>
             </form>
             <aside class="profile-summary">
-              <div class="summary-head"><strong>概要</strong><button id="editor-system-defaults" type="button"><i data-lucide="refresh-cw"></i>读取本机默认值</button></div>
+              <div class="summary-head"><strong>概要</strong><button id="editor-system-defaults" type="button">读取本机默认值</button></div>
               <dl id="editor-summary"></dl>
               <section class="environment-audit" id="editor-audit"></section>
               <p>保存后，运行中的环境需要重启才能应用浏览器级设置。</p>
@@ -1071,22 +1071,22 @@
   <p class="storage-warning" id="cloud-sync-status">尚未同步。单环境是否同步请在「编辑环境 → 偏好设置 → 云备份」中开关，主列表不放同步开关。</p>
 </article>
 <article class="storage-settings-card" id="kernel-settings-card">
-  <div class="storage-settings-head"><div><h3>独立浏览器内核</h3><p>安装包<strong>直接内置</strong>独立内核，<strong>运行时不再自动下载</strong>。平台目录：<code>kernels/macos-x64</code> · <code>kernels/windows-x64</code> · <code>kernels/macos-arm64</code> · <code>kernels/chrome-for-testing/chrome-linux64</code>。</p></div><span id="kernel-status-badge">检测中</span></div>
+  <div class="storage-settings-head"><div><h3>独立浏览器内核</h3><p>优先使用安装包内置内核；点击下载时使用 <strong>Google Chrome Stable</strong> 正式包。平台目录：<code>kernels/macos-x64</code> · <code>kernels/windows-x64</code> · <code>kernels/macos-arm64</code> · <code>kernels/chrome-stable</code>。</p></div><span id="kernel-status-badge">检测中</span></div>
   <div class="storage-path-box"><small>内核路径</small><code id="kernel-path">—</code></div>
   <div class="storage-path-box" style="margin-top:8px"><small>版本 / 来源</small><code id="kernel-version">—</code></div>
   <div class="storage-path-box" style="margin-top:8px"><small>下次启动实际使用</small><code id="kernel-active-path">—</code></div>
   <div class="storage-path-box" style="margin-top:8px"><small>启动策略</small><code id="kernel-launch-mode">—</code></div>
-  <div class="storage-path-box" style="margin-top:8px"><small>内核通道</small><code id="kernel-channel">安装包内置 · 无在线下载</code></div>
+  <div class="storage-path-box" style="margin-top:8px"><small>内核通道</small><code id="kernel-channel">Google Chrome Stable</code></div>
   <div class="storage-actions" style="margin-top:12px">
-    <button class="primary" id="kernel-download" type="button">重新定位内置内核</button>
-    <button class="outline" id="kernel-check-update" type="button">查看内置版本</button>
+    <button class="primary" id="kernel-download" type="button">下载 Chrome Stable</button>
+    <button class="outline" id="kernel-check-update" type="button">检查 Stable 版本</button>
     <button class="outline" id="kernel-choose" type="button">选择自定义内核</button>
     <button class="outline" id="kernel-refresh" type="button">刷新状态</button>
   </div>
   <label class="check-row" style="margin-top:12px;display:flex;gap:8px;align-items:center"><input id="kernel-prefer-independent" type="checkbox" checked> 优先使用独立内核（推荐）</label>
   <label class="check-row" style="margin-top:6px;display:flex;gap:8px;align-items:center"><input id="kernel-allow-system" type="checkbox"> 允许手动回退到本机浏览器（默认关闭）</label>
   <label class="check-row" style="margin-top:6px;display:flex;gap:8px;align-items:center">手动选择回退浏览器（Windows 可选 Chrome 或 Edge）<select id="kernel-system-browser"><option value="">未选择</option></select></label>
-  <p class="storage-warning" id="kernel-progress">本版本不再从网络自动下载内核。安装包按平台内置独立内核（kernels/macos-x64 · windows-x64 · macos-arm64；Ubuntu 为 kernels/chrome-for-testing/chrome-linux64）。默认不会自动回退到本机浏览器；只有手动选择并开启后才会使用本机浏览器。</p>
+  <p class="storage-warning" id="kernel-progress">点击下载会获取 Google Chrome Stable 正式包并校验，不使用 Chrome for Testing 包。默认不会自动回退到本机浏览器。</p>
 </article>
 <article><h3>运行时</h3><dl id="runtime-info"></dl></article><article><h3>能力状态</h3><dl><div><dt>真实浏览器进程</dt><dd class="ok">已启用</dd></div><div><dt>独立用户目录</dt><dd class="ok">已启用</dd></div><div><dt>扩展批量加载</dt><dd class="ok">已启用</dd></div><div><dt>Chrome DevTools Protocol</dt><dd class="ok">已启用</dd></div><div><dt>运行模式</dt><dd class="ok">纯本地</dd></div><div><dt>本机接口</dt><dd class="ok">127.0.0.1:50325</dd></div></dl></article><article class="storage-settings-card"><div class="storage-settings-head"><div><h3>环境缓存与数据位置</h3><p>各环境的 Chrome 用户目录、Cookie、缓存、本地存储、IndexedDB 和会话数据都会保存在这里。</p></div><span>本地保存</span></div><div class="storage-path-box"><small>当前目录</small><code id="profile-storage-path">正在读取...</code></div><div class="storage-actions"><button class="primary" id="choose-profile-storage" type="button">选择新目录</button><button class="outline" id="open-profile-storage" type="button">打开目录</button><button class="outline" id="reset-profile-storage" type="button">恢复默认位置</button></div><p class="storage-warning">修改前请先停止所有环境。新位置在环境下次启动时生效；旧目录中的数据不会自动移动或删除。</p></article></div></section>
       </main>
@@ -1233,6 +1233,6 @@
   </form></dialog><dialog id="add-app-dialog"><div class="dialog-head"><div><h2>&#28155;&#21152;&#24212;&#29992;</h2><p>&#20174;&#26412;&#22320;&#30446;&#24405;&#25110; Chrome &#24212;&#29992;&#21830;&#24215;&#28155;&#21152;</p></div><button id="close-add-app">&times;</button></div><div class="store-source-tabs"><button class="outline" id="choose-extension-folder">&#23433;&#35013;&#21253;&#30446;&#24405;</button><button class="primary" type="button">Chrome &#24212;&#29992;&#21830;&#24215;</button></div><label>Chrome &#24212;&#29992;&#21830;&#24215; URL<input id="chrome-store-url" placeholder="https://chromewebstore.google.com/detail/.../extension-id"></label><label class="assign-item"><input id="store-assign-all" type="checkbox" checked> &#28155;&#21152;&#21040;&#25152;&#26377;&#29615;&#22659;&#24182;&#37325;&#21551;&#27491;&#22312;&#36816;&#34892;&#30340;&#29615;&#22659;</label><p class="store-note">&#21482;&#25509;&#21463; Chrome Web Store &#38142;&#25509;&#65307;&#19979;&#36733;&#21518;&#20250;&#26657;&#39564; CRX &#26684;&#24335;&#21644;&#25991;&#20214;&#36335;&#24452;&#12290;</p><div class="dialog-actions"><button class="outline" id="cancel-add-app">&#21462;&#28040;</button><button class="primary" id="add-store-submit">&#30830;&#23450;&#28155;&#21152;</button></div></dialog><div class="toast" id="toast"></div>
   <script src="environment-audit.js?v=20260719-environment-audit"></script>
   <script src="assets/vendor/lucide.min.js"></script>
-  <script src="renderer.js?v=20260720-nes-light"></script>
+  <script src="renderer.js?v=20260820-editor-guard"></script>
 </body>
 </html>

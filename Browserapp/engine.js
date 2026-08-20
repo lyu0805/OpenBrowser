@@ -310,10 +310,7 @@ class BrowserEngine {
     return this.kernelBootstrapPromise;
   }
 
-  /**
-   * Resolve the integrated independent kernel only.
-   * Runtime auto-download of Wayfern / Chrome for Testing is permanently disabled.
-   */
+  /** Resolve the integrated kernel, downloading Google Chrome Stable when requested. */
   async ensureIndependentKernel(force = false) {
     const kernel = await this.kernelManager.ensureIntegrated(force);
     this.emit({ type: 'kernel-ready', kernel });
@@ -1868,7 +1865,7 @@ class BrowserEngine {
     const extensions = this.assignedExtensions(profile.id);
     this.emitStartProgress(profile.id, 'kernel', 30, '正在准备浏览器内核…');
     if (!this.kernelStatus().installed && this.preferIndependentKernel) {
-      // Resolve integrated seed only — never download a remote kernel at start time.
+      // Resolve the integrated seed, or let the kernel manager download Chrome Stable.
       await this.ensureKernelBootstrap();
     }
     const browser = this.chooseBrowser(profile);

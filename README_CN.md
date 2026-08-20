@@ -96,7 +96,7 @@ npm start
 ```bash
 cd Browserapp
 # 可选：OPENBROWSER_PACKAGE_ARCH=x86_64 或 arm64
-# 仅 Ubuntu x86_64：显式获取 Chrome for Testing 内核种子。
+# 仅 Ubuntu x86_64：显式获取 Google Chrome Stable 内核种子。
 npm run prepare:linux-kernel
 npm run package:portable
 ```
@@ -109,8 +109,8 @@ npm run package:portable
 | macOS | 包含 `OpenBrowser.app` 和 `启动.command`。 |
 | Ubuntu x86_64 | 包含 `OpenBrowser-…tar.gz` 便携包和启动器。 |
 
-Ubuntu 安装包将 Chrome for Testing 内置在
-`kernels/chrome-for-testing/chrome-linux64`；应用运行时不会下载内核。请用普通桌面用户运行，不要使用 `sudo`。如缺少依赖，可安装标准 Electron/Chromium 桌面库：
+Ubuntu 安装包将 Google Chrome Stable 正式包内置在
+`kernels/chrome-stable/opt/google/chrome/chrome`；应用运行时不会下载内核。请用普通桌面用户运行，不要使用 `sudo`。如缺少依赖，可安装标准 Electron/Chromium 桌面库：
 
 ```bash
 sudo apt-get install libatk-bridge2.0-0 libatk1.0-0 libatspi2.0-0 libcups2 libdrm2 libgbm1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libxcomposite1 libxdamage1 libxfixes3 libxkbcommon0 libxrandr2
@@ -143,7 +143,7 @@ OpenBrowser/
 └── README_CN.md           # 中文说明
 ```
 
-仓库只包含源码与文档，不包含 Profile、Cookie、代理凭据、打包用内核二进制或安装包。官方 Windows x64 和 macOS arm64 构建会在 CI 打包时集成对应 Wayfern 内核；macOS x86_64 构建使用 OpenBrowser 148 内核；Ubuntu x86_64 构建会在 CI 打包时显式获取 Chrome for Testing。
+仓库只包含源码与文档，不包含 Profile、Cookie、代理凭据、打包用内核二进制或安装包。官方 Windows x64 和 macOS arm64 构建会在 CI 打包时集成对应 Wayfern 内核；macOS x86_64 构建使用 OpenBrowser 148 内核；Ubuntu x86_64 构建会在 CI 打包时显式获取 Google Chrome Stable 正式包。
 
 ## 数据与安全
 

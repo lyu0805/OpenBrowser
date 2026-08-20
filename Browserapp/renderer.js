@@ -841,6 +841,8 @@ let pendingDeleteProfiles = [];
 let editingProfileId = null;
 let editorNetworkResult = null;
 let editorSaving = false;
+let kernelChromeMajor = 0;
+let editorUaChromeMajorTouched = false;
 let toastTimer = null;
 const PROFILE_PAGE_SIZES = [10, 20, 50, 100];
 const PROFILE_PAGE_SIZE_KEY = 'openbrowser-profile-page-size-v1';
@@ -1494,6 +1496,27 @@ function editorSet(id, value) {
   field.value = value ?? '';
   if (field instanceof HTMLSelectElement) syncThemedSelect(field);
 }
+
+function parseEditorChromeMajor(value) {
+  const text = String(value || '').trim();
+  const match = text.match(/Chrome\/(\d+)/i) || text.match(/^\d+/);
+  return Number(match?.[1] || match?.[0]) || 0;
+}
+
+function syncKernelChromeMajor(info) {
+  const major = parseEditorChromeMajor(info?.kernel?.version || info?.kernelSelection?.browser?.version);
+  if (!major) return;
+  kernelChromeMajor = major;
+  const input = $('#editor-ua-chrome-major');
+  const userAgent = $('#editor-user-agent')?.value?.trim() || '';
+  if (input && !editorUaChromeMajorTouched && !userAgent) input.value = String(major);
+}
+
+function editorChromeMajor(rawUserAgent = '') {
+  if (rawUserAgent && !editorUaChromeMajorTouched) return undefined;
+  return Number($('#editor-ua-chrome-major')?.value) || kernelChromeMajor || undefined;
+}
+
 function editorCheck(id, value) { const field = $(id); if (field) field.checked = Boolean(value); }
 function editorSelectedNetwork() { return document.querySelector('input[name="editor-network"]:checked')?.value || 'direct'; }
 
@@ -1828,7 +1851,7 @@ function setEditorSaveState(state = 'saved', message = '') {
   if (saveButton) {
     saveButton.disabled = editorSaving;
     saveButton.toggleAttribute('aria-busy', editorSaving);
-    saveButton.textContent = editorSaving ? tx('保存中…') : tx('立即保存');
+    saveButton.textContent = editorSaving ? tx('保存中…') : tx('保存');
   }
   if (cancelButton) cancelButton.disabled = editorSaving;
   if (backButton) backButton.disabled = editorSaving;
@@ -1861,6 +1884,7 @@ function openProfileEditor(id) {
   const profile = normalizeProfileSettings(ui.profiles.find((item) => item.id === id)); if (!profile?.id) return;
   editorNetworkResult = profile.exitIp ? { ip: profile.exitIp, countryCode: profile.exitCountryCode, timezone: profile.exitTimezone, latitude: profile.exitLatitude, longitude: profile.exitLongitude, checkedAt: profile.exitCheckedAt } : null;
   editingProfileId = profile.id;
+  editorUaChromeMajorTouched = false;
   editorSet('#editor-id', profile.id);
   $('#editor-profile-id').textContent = displayProfileNumber(profile);
   editorSet('#editor-name', displayProfileNumber(profile));
@@ -1868,6 +1892,7 @@ function openProfileEditor(id) {
   editorSet('#editor-browser', 'Google Chrome');
   editorSet('#editor-os', profile.os);
   editorSet('#editor-user-agent', profile.userAgent);
+  editorSet('#editor-ua-chrome-major', parseEditorChromeMajor(profile.userAgent) || kernelChromeMajor || '');
   editorSet('#editor-cookies', (() => {
     if (!profile.cookies) return '';
     try { return JSON.stringify(JSON.parse(profile.cookies), null, 2); } catch (_) { return profile.cookies; }
@@ -2123,6 +2148,8 @@ async function refreshEditorProxy() {
 }
 
 function useSystemEditorDefaults() {
+  editorUaChromeMajorTouched = false;
+  editorSet('#editor-ua-chrome-major', kernelChromeMajor || '');
   editorSet('#editor-user-agent', ''); editorSet('#editor-timezone-mode', 'real'); editorSet('#editor-timezone', Intl.DateTimeFormat().resolvedOptions().timeZone || ''); editorSet('#editor-geo-mode', 'disabled'); editorSet('#editor-ui-language', 'system');
   editorSet('#editor-resolution', 'auto'); editorSet('#editor-width', Math.max(640, screen.availWidth || 1280)); editorSet('#editor-height', Math.max(480, screen.availHeight || 820));
   editorSet('#editor-webrtc', 'real'); editorSet('#editor-canvas', 'real'); editorSet('#editor-webgl', 'real'); editorSet('#editor-webgpu', 'real'); editorSet('#editor-audio', 'real'); editorSet('#editor-media', 'real'); editorSet('#editor-speech', 'real');
@@ -2182,7 +2209,7 @@ async function refreshUaMetaPreview() {
     const ua = await window.ops.buildUa({
       userAgent: raw,
       os: editorOsToUaKey($('#editor-os')?.value),
-      chromeMajor: Number($('#editor-ua-chrome-major')?.value) || undefined,
+      chromeMajor: editorChromeMajor(raw),
     });
     await showUaMetaPreview(ua);
   } catch (_) {}
@@ -2192,7 +2219,7 @@ document.getElementById('editor-ua-generate')?.addEventListener('click', async (
   try {
     await applyBuiltUa({
       os: editorOsToUaKey($('#editor-os')?.value),
-      chromeMajor: Number($('#editor-ua-chrome-major')?.value) || 131,
+      chromeMajor: editorChromeMajor(),
     });
     toast(tx('已按系统生成 UA + Client Hints'));
   } catch (e) { toast(e.message); }
@@ -2202,19 +2229,27 @@ document.getElementById('editor-ua-random')?.addEventListener('click', async () 
     await applyBuiltUa({
       random: true,
       os: editorOsToUaKey($('#editor-os')?.value),
-      chromeMajor: Number($('#editor-ua-chrome-major')?.value) || undefined,
+      chromeMajor: editorChromeMajor(),
     });
     toast(tx('已随机生成 UA'));
   } catch (e) { toast(e.message); }
 });
 document.getElementById('editor-ua-clear')?.addEventListener('click', () => {
+  editorUaChromeMajorTouched = false;
   editorSet('#editor-user-agent', '');
+  editorSet('#editor-ua-chrome-major', kernelChromeMajor || '');
   markEditorDirty();
   refreshUaMetaPreview().catch(() => {});
   renderEditorSummary();
   toast(tx('已改为自动生成'));
 });
-document.getElementById('editor-user-agent')?.addEventListener('input', () => {
+document.getElementById('editor-ua-chrome-major')?.addEventListener('input', () => {
+  editorUaChromeMajorTouched = true;
+});
+document.getElementById('editor-user-agent')?.addEventListener('input', (event) => {
+  if (!editorUaChromeMajorTouched) {
+    editorSet('#editor-ua-chrome-major', parseEditorChromeMajor(event.target.value) || kernelChromeMajor || '');
+  }
   clearTimeout(window.__uaPreviewTimer);
   window.__uaPreviewTimer = setTimeout(() => refreshUaMetaPreview().catch(() => {}), 300);
 });
@@ -2246,6 +2281,10 @@ let proxyLibrary = [];
 const selectedProxies = new Set();
 
 function switchView(view) {
+  const leavingEditor = view !== 'profile-editor' && $('#view-profile-editor')?.classList.contains('active');
+  const editorState = $('#editor-save-state')?.dataset.state;
+  if (leavingEditor && (editorSaving || ((editorState === 'dirty' || editorState === 'error') && !confirm(tx('当前环境有未保存的更改，确定离开吗？'))))) return false;
+  if (leavingEditor) { editingProfileId = null; editorNetworkResult = null; }
   $$('.nav').forEach((button) => {
     if (button.id === 'rpa-menu-toggle') {
       // parent group: active while any RPA sub-page is open
@@ -2276,6 +2315,7 @@ function switchView(view) {
     document.getElementById('rpa-menu-toggle')?.classList.remove('open');
   }
   if (view === 'api-mcp') refreshApiMcpPage();
+  return true;
 }
 
 // ========== 分组管理 ==========
@@ -3768,8 +3808,8 @@ editorTabButtons.forEach((button, index) => {
     setEditorTab(editorTabButtons[nextIndex].dataset.editorTab, { focus: true });
   });
 });
-$('#editor-back').addEventListener('click', () => { editingProfileId = null; editorNetworkResult = null; switchView('profiles'); });
-$('#editor-cancel').addEventListener('click', () => { editingProfileId = null; editorNetworkResult = null; switchView('profiles'); });
+$('#editor-back').addEventListener('click', () => switchView('profiles'));
+$('#editor-cancel').addEventListener('click', () => switchView('profiles'));
 $('#editor-test-proxy')?.addEventListener('click', testEditorProxy);
 $('#editor-apply-proxy-fp')?.addEventListener('click', applyEditorProxyFingerprint);
 $('#editor-refresh-proxy')?.addEventListener('click', refreshEditorProxy);
@@ -3785,6 +3825,10 @@ const onEditorFormChange = (event) => {
 };
 $('#profile-editor-form').addEventListener('input', onEditorFormChange);
 $('#profile-editor-form').addEventListener('change', onEditorFormChange);
+window.addEventListener('beforeunload', (event) => {
+  const state = $('#editor-save-state')?.dataset.state;
+  if ($('#view-profile-editor')?.classList.contains('active') && (state === 'dirty' || state === 'error')) event.preventDefault();
+});
 
 // Platform preset → fill 指定地址
 function applyPlatformPresetToStartUrl() {
@@ -4403,6 +4447,7 @@ async function initialize() {
   applyVersionTrafficLight({ light: 'checking', currentVersion: info?.appVersion });
   // Backend also pushes app-update-status after startup delay; this primes the light immediately.
   updateEngineBadge(info);
+  syncKernelChromeMajor(info);
   renderRuntimeInfo(info);
   syncState = await window.ops.getSyncState(); preferredMasterId = syncState.master || null; if (syncState.active) selectedSessions = new Set(syncState.selected || []);
   await applySyncSettings(syncSettings); fillSyncSettingsForm();
@@ -5433,6 +5478,7 @@ window.ops.onEvent((value) => {
 // ========== Independent browser kernel — Donut Wayfern channel ==========
 function kernelSourceLabel(source) {
   if (source === 'donut-wayfern') return 'Donut Wayfern';
+  if (source === 'chrome-stable') return 'Google Chrome Stable';
   if (source === 'chrome-for-testing') return 'Chrome for Testing';
   if (source === 'custom') return '自定义';
   return source || '—';
@@ -5450,6 +5496,7 @@ async function refreshKernelPanel() {
   const systemBrowser = document.getElementById('kernel-system-browser');
   try {
     const info = await window.ops.getInfo();
+    syncKernelChromeMajor(info);
     updateEngineBadge(info);
     const st = info.kernel || await window.ops.kernelStatus();
     const k = st.kernel;
@@ -5462,12 +5509,12 @@ async function refreshKernelPanel() {
       const remote = st.meta?.remoteVersion;
       verEl.textContent = k
         ? `${k.version || '—'} · ${kernelSourceLabel(k.source)}${remote && remote !== k.version ? tx(' · 远端 ') + remote : ''}`
-        : tx('点击下方从 Donut 官方源下载 Wayfern');
+        : tx('点击下方下载 Google Chrome Stable');
     }
     if (channelEl) {
       channelEl.textContent = st.channel
-        ? `${st.channel.name} · ${st.channel.metaUrl}`
-        : 'Donut · Wayfern · https://donutbrowser.com/wayfern.json';
+        ? [st.channel.name, st.channel.metaUrl].filter(Boolean).join(' · ')
+        : 'Google Chrome Stable';
     }
     const selection = info.kernelSelection;
     if (activePathEl) activePathEl.textContent = selection?.browser?.path || selection?.message || tx('未选择可执行文件');
@@ -5502,17 +5549,17 @@ document.getElementById('kernel-download')?.addEventListener('click', async () =
   const btn = document.getElementById('kernel-download');
   try {
     if (btn) btn.disabled = true;
-    if (progress) progress.textContent = tx('正在定位安装包内置内核…');
-    toast(tx('重新定位内置内核…'));
-    // Runtime network download is disabled — only resolve integrated seeds.
-    const kernel = await window.ops.kernelDownload(false);
+    if (progress) progress.textContent = tx('正在准备 Google Chrome Stable…');
+    toast(tx('开始下载 Google Chrome Stable…'));
+    const kernel = await window.ops.kernelDownload(true);
     if (progress) progress.textContent = tx('内置内核就绪：') + (kernel?.path || '');
     toast(tx(`${kernelSourceLabel(kernel?.source)} 已就绪 v${kernel?.version || ''}`));
     await refreshKernelPanel();
     log('Kernel', `${kernelSourceLabel(kernel?.source)} ${kernel?.version || ''} · ${kernel?.path || ''}`);
   } catch (error) {
-    if (progress) progress.textContent = tx('内置内核不可用：') + error.message;
-    toast(tx('内置内核不可用：') + error.message);
+    const message = error?.message || String(error);
+    if (progress) progress.textContent = tx('内置内核不可用：') + message;
+    toast(tx('内置内核不可用：') + message);
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -5520,7 +5567,7 @@ document.getElementById('kernel-download')?.addEventListener('click', async () =
 document.getElementById('kernel-check-update')?.addEventListener('click', async () => {
   const progress = document.getElementById('kernel-progress');
   try {
-    if (progress) progress.textContent = tx('读取内置内核版本…');
+    if (progress) progress.textContent = tx('查询 Google Chrome Stable 版本…');
     const result = await window.ops.kernelCheckUpdate();
     if (result.error) {
       toast(tx('内置内核：') + result.error);
@@ -5535,8 +5582,8 @@ document.getElementById('kernel-check-update')?.addEventListener('click', async 
     }
     const ver = installed?.version || remote?.version || '';
     const src = kernelSourceLabel(installed?.source || remote?.source);
-    toast(tx(`内置内核 ${src} v${ver}（不在线更新）`));
-    if (progress) progress.textContent = tx(`内置内核 ${src} · ${ver} · 运行时不自动下载`);
+    toast(tx(`内核 ${src} v${ver}${result.needsUpdate ? '（有新版本）' : '（已是最新）'}`));
+    if (progress) progress.textContent = tx(`内核 ${src} · ${ver}${result.needsUpdate ? ' · 可下载更新' : ' · 已是最新'}`);
     await refreshKernelPanel();
   } catch (error) {
     toast(error.message);
@@ -5990,7 +6037,7 @@ $('#cloud-pull-selected')?.addEventListener('click', async () => {
 // hook system view
 const _switchViewKernel = switchView;
 switchView = function(view) {
-  _switchViewKernel.apply(this, arguments);
+  if (_switchViewKernel.apply(this, arguments) === false) return false;
   // Re-translate static + dynamic chrome for every page (API/MCP, guide, settings, store…)
   try {
     const root = document.getElementById('view-' + view) || document;
@@ -6013,6 +6060,7 @@ switchView = function(view) {
   if (view === 'rpa-guide') {
     afterUiRender(document.getElementById('view-rpa-guide') || document);
   }
+  return true;
 };
 
 window.ops.onEvent((value) => {

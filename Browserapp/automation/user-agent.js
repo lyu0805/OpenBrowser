@@ -76,11 +76,17 @@ function detectHostOs() {
   return 'windows';
 }
 
+function parseChromeMajor(value = '') {
+  const text = String(value || '').trim();
+  const match = text.match(/Chrome\/(\d+)/i) || text.match(/^\d+/);
+  return Number(match?.[1] || match?.[0]) || 0;
+}
+
 function parseChromeVersion(ua = '') {
   const m = String(ua).match(/Chrome\/([\d.]+)/i);
   if (!m) return null;
   const full = m[1];
-  const major = Number(full.split('.')[0]) || 0;
+  const major = parseChromeMajor(full);
   return { full, major };
 }
 
@@ -436,6 +442,7 @@ module.exports = {
   OS_PRESETS,
   GREASE_BRANDS,
   detectHostOs,
+  parseChromeMajor,
   parseChromeVersion,
   parseOsFromUa,
   buildBrands,

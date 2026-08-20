@@ -96,7 +96,7 @@ Or use the launcher scripts from the repository root:
 ```bash
 cd Browserapp
 # Optional: OPENBROWSER_PACKAGE_ARCH=x86_64 or arm64
-# Ubuntu x86_64 only: explicitly fetch the Chrome for Testing package seed.
+# Ubuntu x86_64 only: explicitly fetch the Google Chrome Stable package seed.
 npm run prepare:linux-kernel
 npm run package:portable
 ```
@@ -109,8 +109,8 @@ Build output is written to `Browserapp/dist/`.
 | macOS | Includes `OpenBrowser.app` and `启动.command`. |
 | Ubuntu x86_64 | Includes an `OpenBrowser-…tar.gz` portable archive and launcher. |
 
-Ubuntu packages include Chrome for Testing under
-`kernels/chrome-for-testing/chrome-linux64`; the application never downloads a
+Ubuntu packages include the official Google Chrome Stable package under
+`kernels/chrome-stable/opt/google/chrome/chrome`; the application never downloads a
 kernel at runtime. Run the package as a normal desktop user, not with `sudo`.
 If required, install the standard Electron/Chromium desktop libraries:
 
@@ -145,7 +145,7 @@ OpenBrowser/
 └── README_CN.md           # Chinese documentation
 ```
 
-This repository contains source code and documentation only. It does not include profiles, cookies, proxy credentials, bundled kernel binaries, or installers. Official Windows x64 and macOS arm64 builds use the matching Wayfern kernel during CI packaging; macOS x86_64 builds use the OpenBrowser 148 kernel; Ubuntu x86_64 builds explicitly fetch Chrome for Testing during CI packaging.
+This repository contains source code and documentation only. It does not include profiles, cookies, proxy credentials, bundled kernel binaries, or installers. Official Windows x64 and macOS arm64 builds use the matching Wayfern kernel during CI packaging; macOS x86_64 builds use the OpenBrowser 148 kernel; Ubuntu x86_64 builds explicitly fetch the official Google Chrome Stable package during CI packaging.
 
 ## Data and security
 

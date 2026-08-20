@@ -1778,21 +1778,25 @@ app.whenReady().then(async () => {
   registerTrustedIpc('automation:fingerprint', (_event, id) => engine.fingerprintFor(String(id || '')));
   registerTrustedIpc('automation:isolation-audit', () => engine.isolationAudit());
   registerTrustedIpc('automation:build-ua', (_event, payload = {}) => {
-    const { buildUaProfile, randomUaForSeed, parseOsFromUa } = require('./automation/user-agent');
+    const { buildUaProfile, randomUaForSeed, parseChromeMajor, parseOsFromUa } = require('./automation/user-agent');
     const crypto = require('crypto');
     const osMap = { Windows: 'windows', windows: 'windows', macOS: 'macos', macos: 'macos', Mac: 'macos', Linux: 'linux', linux: 'linux' };
-    const os = osMap[payload.os] || payload.os || parseOsFromUa(payload.userAgent || '') || undefined;
+    const userAgent = String(payload.userAgent || '').trim();
+    const os = osMap[payload.os] || payload.os || parseOsFromUa(userAgent) || undefined;
+    const explicitMajor = Number(payload.chromeMajor) || 0;
+    const kernelMajor = parseChromeMajor(engine.kernelStatus()?.kernel?.version);
+    const defaultMajor = explicitMajor || (!userAgent ? kernelMajor : 0) || undefined;
     if (payload?.random) {
       const seed = crypto.randomBytes(4).readUInt32BE(0);
       return randomUaForSeed(seed, {
-        majors: payload.chromeMajor ? [Number(payload.chromeMajor)] : undefined,
+        majors: explicitMajor ? [explicitMajor] : (kernelMajor ? [kernelMajor] : undefined),
         osList: os ? [os] : undefined,
       });
     }
     return buildUaProfile({
-      userAgent: payload.userAgent || '',
+      userAgent,
       os,
-      chromeMajor: Number(payload.chromeMajor) || undefined,
+      chromeMajor: defaultMajor,
       chromeFull: payload.chromeFull || payload.fullVersion,
       reduced: payload.reduced !== false,
     });
