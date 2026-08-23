@@ -62,6 +62,7 @@ async function main() {
     assert.ok(html.includes('id="batch-add-template"'), 'batch create must expose preference template');
     assert.ok(html.includes('id="copy-selected"'), 'selection bar must expose copy action');
     assert.ok(renderer.includes('delete privacy.fingerprint'), 'copied preferences must create an independent fingerprint identity');
+    assert.ok(renderer.includes("Object.values(preferences.privacy).includes('noise')"), 'single-profile copy must regenerate random fingerprint identity');
     assert.ok(renderer.includes('assignedExtensions || []'), 'copied profiles must inherit source extension assignments');
     assert.ok(renderer.includes("platform: { type: 'other', startUrl }"), 'create flow must persist startup URL');
     assert.ok(main.includes("engine.checkProxy(profile, { persist: true })"), 'manual exit checks must persist in engine state');
@@ -72,7 +73,7 @@ async function main() {
     assert.ok(liveSync.includes('this.nativePopupActive || this.extensionConnections.size'), 'window geometry sync must pause for native/extension popups');
     assert.ok(nativeMirror.includes('NATIVE_POPUP_ACTIVE='), 'native bridge must report popup foreground state');
 
-    process.stdout.write(JSON.stringify({ success: true, checks: 18 }, null, 2));
+    process.stdout.write(JSON.stringify({ success: true, checks: 19 }, null, 2));
   } finally {
     await fsp.rm(root, { recursive: true, force: true }).catch(() => {});
   }

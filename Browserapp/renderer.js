@@ -841,6 +841,7 @@ let pendingDeleteProfiles = [];
 let editingProfileId = null;
 let editorNetworkResult = null;
 let editorSaving = false;
+let editorSummaryFrame = 0;
 let kernelChromeMajor = 0;
 let editorUaChromeMajorTouched = false;
 let toastTimer = null;
@@ -1836,6 +1837,14 @@ function renderEditorSummary() {
   }
 }
 
+function scheduleEditorSummary() {
+  if (editorSummaryFrame) return;
+  editorSummaryFrame = requestAnimationFrame(() => {
+    editorSummaryFrame = 0;
+    renderEditorSummary();
+  });
+}
+
 function setEditorSaveState(state = 'saved', message = '') {
   const labels = { saved: '已保存', dirty: '有未保存更改', saving: '正在保存…', error: '保存失败，请重试' };
   const status = $('#editor-save-state');
@@ -2687,16 +2696,29 @@ function buildStartProgressCell(profileId, progress) {
   return wrap;
 }
 
+function filteredProfilesForView() {
+  const filter = $('#profile-search').value.trim().toLowerCase();
+  return ui.profiles.filter((profile) => {
+    if (activeGroupFilter === 'ungrouped' && profile.groupId) return false;
+    if (activeGroupFilter !== 'all' && activeGroupFilter !== 'ungrouped' && profile.groupId !== activeGroupFilter) return false;
+    if (!filter) return true;
+    return [
+      profile.id,
+      displayProfileNumber(profile),
+      profile.name,
+      profile.title,
+      profile.browser,
+      profile.proxy,
+      profile.tag,
+      groupNameOf(profile),
+    ].join(' ').toLowerCase().includes(filter);
+  });
+}
+
 function renderProfiles() {
   renderGroupFilterChips();
-  const filter = $('#profile-search').value.trim().toLowerCase();
   const table = $('#profile-table'); table.replaceChildren();
-  let filtered = ui.profiles.filter((profile) => {
-    if (activeGroupFilter === 'ungrouped') return !profile.groupId;
-    if (activeGroupFilter !== 'all' && profile.groupId !== activeGroupFilter) return false;
-    return true;
-  });
-  filtered = filtered.filter((profile) => [profile.id, displayProfileNumber(profile), profile.browser, profile.proxy, profile.tag, groupNameOf(profile)].join(' ').toLowerCase().includes(filter));
+  const filtered = filteredProfilesForView();
   const totalPages = Math.max(1, Math.ceil(filtered.length / profilePageSize));
   profilePage = Math.min(Math.max(1, profilePage), totalPages);
   const pageStart = (profilePage - 1) * profilePageSize;
@@ -2809,8 +2831,7 @@ function renderProfiles() {
 }
 
 function visibleProfilePageIds() {
-  const filter = $('#profile-search').value.trim().toLowerCase();
-  const filtered = ui.profiles.filter((profile) => [profile.id, displayProfileNumber(profile), profile.browser, profile.proxy, profile.tag].join(' ').toLowerCase().includes(filter));
+  const filtered = filteredProfilesForView();
   const totalPages = Math.max(1, Math.ceil(filtered.length / profilePageSize));
   const page = Math.min(Math.max(1, profilePage), totalPages);
   const pageStart = (page - 1) * profilePageSize;
@@ -2889,6 +2910,8 @@ async function copyProfile(id) {
   const source = ui.profiles.find((profile) => profile.id === id); if (!source) return;
   const number = nextProfileNumber(); const previousNext = ui.nextProfileNumber;
   const copy = JSON.parse(JSON.stringify(source));
+  const preferences = cloneProfilePreferences(source);
+  if (Object.values(preferences.privacy).includes('noise') || preferences.privacy.deviceProfile === 'default') copy.privacy = preferences.privacy;
   Object.assign(copy, { id: createInternalProfileId(number), number, name: String(number), cookies: '', updatedAt: new Date().toISOString() });
   for (const key of ['exitIp', 'exitCountryCode', 'exitTimezone', 'exitLatitude', 'exitLongitude', 'exitCheckedAt', 'exitLatencyMs', 'exitNetworkType']) delete copy[key];
   ui.profiles.push(copy); ui.nextProfileNumber = number + 1; save();
@@ -3669,7 +3692,7 @@ document.addEventListener('change', async (event) => {
 $('#select-all-profiles').addEventListener('change', (event) => { for (const id of visibleProfilePageIds()) event.target.checked ? selectedProfiles.add(id) : selectedProfiles.delete(id); renderProfiles(); });
 $('#select-all-sessions').addEventListener('change', (event) => { if (syncState.active) return; const group = $('#sync-group').value || 'all'; const visible = group === 'all' ? sessions : sessions.filter((item) => String(item.profile?.tag || '未分组') === group); for (const item of visible) event.target.checked ? selectedSessions.add(item.id) : selectedSessions.delete(item.id); if (!selectedSessions.has(preferredMasterId)) preferredMasterId = [...selectedSessions][0] || null; pushSyncSelection(); renderSessions(); });
 $('#sync-group').addEventListener('change', () => { if (syncState.active) return; const group = $('#sync-group').value || 'all'; const values = group === 'all' ? sessions : sessions.filter((item) => String(item.profile?.tag || '未分组') === group); selectedSessions = new Set(values.map((item) => item.id)); preferredMasterId = values[0]?.id || null; pushSyncSelection(); renderSessions(); });
-$('#profile-search').addEventListener('input', () => { profilePage = 1; renderProfiles(); }); $('#extension-search').addEventListener('input', renderExtensions);
+$('#profile-search').addEventListener('input', () => { profilePage = 1; scheduleRenderProfiles(); }); $('#extension-search').addEventListener('input', renderExtensions);
 $('#profile-page-size').addEventListener('change', (event) => { const value = Number(event.target.value); profilePageSize = PROFILE_PAGE_SIZES.includes(value) ? value : 10; profilePage = 1; try { localStorage.setItem(PROFILE_PAGE_SIZE_KEY, String(profilePageSize)); } catch (_) {} renderProfiles(); });
 $('#profile-prev').addEventListener('click', () => { profilePage = Math.max(1, profilePage - 1); renderProfiles(); });
 $('#profile-next').addEventListener('click', () => { profilePage += 1; renderProfiles(); });
@@ -3821,7 +3844,7 @@ const onEditorFormChange = (event) => {
     $('#editor-proxy-result').className = 'proxy-test-result';
     $('#editor-proxy-result').textContent = editorSelectedNetwork() === 'direct' ? tx('本地直连') : tx('设置已更改，请重新检测');
   }
-  markEditorDirty(); updateEditorVisibility(); renderEditorSummary();
+  markEditorDirty(); updateEditorVisibility(); scheduleEditorSummary();
 };
 $('#profile-editor-form').addEventListener('input', onEditorFormChange);
 $('#profile-editor-form').addEventListener('change', onEditorFormChange);
