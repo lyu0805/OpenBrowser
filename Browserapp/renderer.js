@@ -805,6 +805,7 @@ function createInternalProfileId(number, usedIds = new Set(ui.profiles.map((prof
 let engineProfiles = [];
 let extensions = [];
 let appCenterTab = 'builtin';
+let extensionSearchFrame = 0;
 let appCenterData = { builtin: [], recommended: [], local: [], counts: {} };
 let sessions = [];
 let sessionsInitialized = false;
@@ -2288,6 +2289,7 @@ function viewMetaFor(view) {
 
 let proxyLibrary = [];
 const selectedProxies = new Set();
+const loadedViews = new Set(['profiles']);
 
 function switchView(view) {
   const leavingEditor = view !== 'profile-editor' && $('#view-profile-editor')?.classList.contains('active');
@@ -2310,9 +2312,27 @@ function switchView(view) {
   $$('.view').forEach((section) => section.classList.toggle('active', section.id === `view-${view}`));
   const meta = viewMetaFor(view);
   $('#page-title').textContent = meta[0]; $('#page-subtitle').textContent = meta[1];
-  if (view === 'sync') refreshSessions();
-  if (view === 'extensions') refreshExtensions();
-  if (view === 'proxies') refreshProxies();
+  if (view === 'sync') {
+    if (loadedViews.has(view) && sessions.length) renderSessions();
+    else {
+      loadedViews.add(view);
+      refreshSessions();
+    }
+  }
+  if (view === 'extensions') {
+    if (loadedViews.has(view) && (extensions.length || appCenterData.builtin.length)) renderExtensions();
+    else {
+      loadedViews.add(view);
+      refreshExtensions();
+    }
+  }
+  if (view === 'proxies') {
+    if (loadedViews.has(view)) renderProxies();
+    else {
+      loadedViews.add(view);
+      refreshProxies();
+    }
+  }
   if (view === 'groups') renderGroupsPage();
   if (view === 'profiles') renderProfiles();
   if (view === 'rpa') {
@@ -2337,6 +2357,7 @@ function renderGroupsPage() {
   const groups = listGroups();
   if (countEl) countEl.textContent = String(groups.length);
   // ungrouped row
+  const groupRows = new DocumentFragment();
   {
     const row = document.createElement('tr');
     const n = countProfilesInGroup('ungrouped');
@@ -2349,7 +2370,7 @@ function renderGroupsPage() {
       element('td', '', t('groups.default')),
       element('td', '', '—')
     );
-    table.append(row);
+    groupRows.append(row);
   }
   for (const g of groups) {
     const row = document.createElement('tr');
@@ -2374,8 +2395,9 @@ function renderGroupsPage() {
     actions.append(view, edit, del);
     const actionCell = document.createElement('td'); actionCell.append(actions);
     row.append(colorCell, nameCell, element('td', '', String(n)), element('td', '', (g.createdAt || '').replace('T', ' ').slice(0, 16) || '—'), actionCell);
-    table.append(row);
+    groupRows.append(row);
   }
+  table.append(groupRows);
   if (empty) empty.hidden = true;
   afterUiRender(document.getElementById('view-groups') || document);
 }
@@ -2482,6 +2504,7 @@ function renderProxies() {
   const q = ($('#proxy-search')?.value || '').trim().toLowerCase();
   const list = proxyLibrary.filter((item) => !q || [item.name, item.host, item.protocol, item.remark, item.lastIp, String(item.port)].join(' ').toLowerCase().includes(q));
   table.replaceChildren();
+  const proxyRows = new DocumentFragment();
   for (const item of list) {
     const row = document.createElement('tr');
     const checkCell = document.createElement('td');
@@ -2534,8 +2557,9 @@ function renderProxies() {
       element('td', '', item.remark || '—'),
       actionCell
     );
-    table.append(row);
+    proxyRows.append(row);
   }
+  table.append(proxyRows);
   if (empty) empty.hidden = list.length !== 0;
   if (countEl) countEl.textContent = t('rpa.store.count', { n: proxyLibrary.length }).replace('templates', tx('条')) + (q ? ` · ${t('profiles.search').split('/')[0].trim()} ${list.length}` : '');
   const selectAll = $('#proxy-select-all');
@@ -2558,6 +2582,7 @@ async function refreshProxies() {
   renderProxies();
   afterUiRender(document.getElementById('view-proxies') || document);
 }
+
 
 function openProxyDialog(item = null) {
   $('#proxy-edit-id').value = item?.id || '';
@@ -2723,6 +2748,7 @@ function renderProfiles() {
   profilePage = Math.min(Math.max(1, profilePage), totalPages);
   const pageStart = (profilePage - 1) * profilePageSize;
   const visible = filtered.slice(pageStart, pageStart + profilePageSize);
+  const profileRows = new DocumentFragment();
   for (const profile of visible) {
     const info = profileEngine(profile.id); const row = document.createElement('tr');
     row.dataset.profileId = profile.id;
@@ -2790,8 +2816,10 @@ function renderProfiles() {
     const copy = element('button', 'mini', t('action.copy')); copy.dataset.action = 'copy'; copy.dataset.id = profile.id;
     const edit = element('button', 'mini edit', t('action.edit')); edit.dataset.action = 'edit'; edit.dataset.id = profile.id;
     actions.append(toggle, sync, copy, edit); actionCell.append(actions);
-    row.append(selectCell, idCell, profileIdCell, nameCell, groupCell, browserCell, proxyCell, networkCell, extensionCell, statusCell, actionCell); table.append(row);
+    row.append(selectCell, idCell, profileIdCell, nameCell, groupCell, browserCell, proxyCell, networkCell, extensionCell, statusCell, actionCell);
+    profileRows.append(row);
   }
+  table.append(profileRows);
   $('#profile-empty').hidden = filtered.length !== 0;
   $('#profile-total').textContent = String(filtered.length);
   const totalLabel = document.querySelector('#profile-pagination .profile-total');
@@ -3069,6 +3097,23 @@ function renderExtensions() {
   if (!visible.length) $('#extension-empty').textContent = appCenterTab === 'builtin' ? tx('暂无自带应用') : tx('尚未添加扩展');
 }
 
+function scheduleRenderExtensions() {
+  if (extensionSearchFrame) return;
+  extensionSearchFrame = requestAnimationFrame(() => {
+    extensionSearchFrame = 0;
+    renderExtensions();
+  });
+}
+
+let proxiesRefreshFrame = 0;
+function scheduleRefreshProxies() {
+  if (proxiesRefreshFrame) return;
+  proxiesRefreshFrame = requestAnimationFrame(() => {
+    proxiesRefreshFrame = 0;
+    refreshProxies();
+  });
+}
+
 async function refreshExtensions() {
   extensions = await window.ops.extensionList();
   try {
@@ -3169,6 +3214,7 @@ function populateSyncGroups() {
 function renderSessions() {
   populateSyncGroups(); const group = $('#sync-group').value || 'all'; const visible = group === 'all' ? sessions : sessions.filter((item) => String(item.profile?.tag || t('groups.ungrouped')) === group);
   const table = $('#session-table'); table.replaceChildren();
+  const sessionRows = new DocumentFragment();
   for (const value of visible) {
     const selected = selectedSessions.has(value.id);
     const role = syncState.active && syncState.master === value.id ? t('tag.master') : syncState.active && syncState.selected.includes(value.id) ? t('tag.workgroup') : selected && preferredMasterId === value.id ? t('tag.master') : selected ? t('action.use') : t('status.stopped');
@@ -3188,8 +3234,10 @@ function renderSessions() {
     nameCell.append(element('strong', '', (profile.title && String(profile.title) !== String(number)) ? profile.title : (t('profiles.envName', { n: number }))));
     const browserCell = document.createElement('td');
     browserCell.append(buildEnvBrowserCell(profile));
-    row.append(selectCell, idCell, nameCell, browserCell, element('td', '', String(value.tabs.length)), statusCell, actionCell); table.append(row);
+    row.append(selectCell, idCell, nameCell, browserCell, element('td', '', String(value.tabs.length)), statusCell, actionCell);
+    sessionRows.append(row);
   }
+  table.append(sessionRows);
   $('#session-empty').style.display = visible.length ? 'none' : 'block';
   $('#selected-count').textContent = t('profiles.selected', { n: selectedSessions.size });
   $('#sync-selected').textContent = t('profiles.selected', { n: selectedSessions.size });
@@ -3443,11 +3491,13 @@ function renderLogs() {
     target.append(element('div', 'log-empty', tx('暂无操作记录')));
     return;
   }
+  const logRows = new DocumentFragment();
   for (const item of ui.logs) {
     const row = element('div', 'log-row');
     row.append(element('span', '', item.time), element('span', '', item.module), element('span', '', item.message));
-    target.append(row);
+    logRows.append(row);
   }
+  target.append(logRows);
 }
 
 function themePopoverViewport() {
@@ -3563,10 +3613,18 @@ $('#theme-trigger').addEventListener('click', (event) => {
   setThemePopoverOpen($('#theme-popover')?.hidden !== false);
 });
 window.addEventListener('resize', () => positionThemePopover());
-window.addEventListener('scroll', () => positionThemePopover(), true);
+let __themePositionFrame = 0;
+const positionThemePopoverOnFrame = () => {
+  if (__themePositionFrame) return;
+  __themePositionFrame = requestAnimationFrame(() => {
+    __themePositionFrame = 0;
+    positionThemePopover();
+  });
+};
+window.addEventListener('scroll', positionThemePopoverOnFrame, { capture: true, passive: true });
 try {
-  window.visualViewport?.addEventListener('resize', () => positionThemePopover());
-  window.visualViewport?.addEventListener('scroll', () => positionThemePopover());
+  window.visualViewport?.addEventListener('resize', positionThemePopoverOnFrame);
+  window.visualViewport?.addEventListener('scroll', positionThemePopoverOnFrame);
 } catch (_) {}
 
 document.addEventListener('click', async (event) => {
@@ -3689,14 +3747,14 @@ document.addEventListener('change', async (event) => {
   if (event.target.dataset.sessionSelect && !syncState.active) { event.target.checked ? selectedSessions.add(event.target.dataset.sessionSelect) : selectedSessions.delete(event.target.dataset.sessionSelect); if (!selectedSessions.has(preferredMasterId)) preferredMasterId = [...selectedSessions][0] || null; pushSyncSelection(); renderSessions(); }
 });
 
-$('#select-all-profiles').addEventListener('change', (event) => { for (const id of visibleProfilePageIds()) event.target.checked ? selectedProfiles.add(id) : selectedProfiles.delete(id); renderProfiles(); });
+$('#select-all-profiles').addEventListener('change', (event) => { for (const id of visibleProfilePageIds()) selectedProfiles[event.target.checked ? 'add' : 'delete'](id); scheduleRenderProfiles(); });
 $('#select-all-sessions').addEventListener('change', (event) => { if (syncState.active) return; const group = $('#sync-group').value || 'all'; const visible = group === 'all' ? sessions : sessions.filter((item) => String(item.profile?.tag || '未分组') === group); for (const item of visible) event.target.checked ? selectedSessions.add(item.id) : selectedSessions.delete(item.id); if (!selectedSessions.has(preferredMasterId)) preferredMasterId = [...selectedSessions][0] || null; pushSyncSelection(); renderSessions(); });
 $('#sync-group').addEventListener('change', () => { if (syncState.active) return; const group = $('#sync-group').value || 'all'; const values = group === 'all' ? sessions : sessions.filter((item) => String(item.profile?.tag || '未分组') === group); selectedSessions = new Set(values.map((item) => item.id)); preferredMasterId = values[0]?.id || null; pushSyncSelection(); renderSessions(); });
-$('#profile-search').addEventListener('input', () => { profilePage = 1; scheduleRenderProfiles(); }); $('#extension-search').addEventListener('input', renderExtensions);
-$('#profile-page-size').addEventListener('change', (event) => { const value = Number(event.target.value); profilePageSize = PROFILE_PAGE_SIZES.includes(value) ? value : 10; profilePage = 1; try { localStorage.setItem(PROFILE_PAGE_SIZE_KEY, String(profilePageSize)); } catch (_) {} renderProfiles(); });
-$('#profile-prev').addEventListener('click', () => { profilePage = Math.max(1, profilePage - 1); renderProfiles(); });
-$('#profile-next').addEventListener('click', () => { profilePage += 1; renderProfiles(); });
-$('#profile-page').addEventListener('change', (event) => { profilePage = Math.max(1, Number.parseInt(event.target.value, 10) || 1); renderProfiles(); });
+$('#profile-search').addEventListener('input', () => { profilePage = 1; scheduleRenderProfiles(); }); $('#extension-search').addEventListener('input', scheduleRenderExtensions);
+$('#profile-page-size').addEventListener('change', (event) => { const value = Number(event.target.value); profilePageSize = PROFILE_PAGE_SIZES.includes(value) ? value : 10; profilePage = 1; try { localStorage.setItem(PROFILE_PAGE_SIZE_KEY, String(profilePageSize)); } catch (_) {} scheduleRenderProfiles(); });
+$('#profile-prev').addEventListener('click', () => { profilePage = Math.max(1, profilePage - 1); scheduleRenderProfiles(); });
+$('#profile-next').addEventListener('click', () => { profilePage += 1; scheduleRenderProfiles(); });
+$('#profile-page').addEventListener('change', (event) => { profilePage = Math.max(1, Number.parseInt(event.target.value, 10) || 1); scheduleRenderProfiles(); });
 function openCreateProfileDialog() {
   fillGroupSelect($('#profile-create-group'), listGroups()[0]?.id || UNGROUPED_ID);
   const directRadio = document.querySelector('input[name="create-network"][value="direct"]');

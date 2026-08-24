@@ -1078,6 +1078,160 @@ html[data-ui-theme="merge-gateway"] .sidebar .nav > i[data-lucide] {
   width: 18px !important; height: 18px !important; min-width: 18px !important;
   min-height: 18px !important; flex-basis: 18px !important;
 }
+
+/* UI polish pass: depth, feedback, and calmer scanning without changing information architecture. */
+html[data-ui-theme="merge-gateway"] {
+  --xai-warm: #f7f7f4;
+  --xai-border-subtle: rgb(10 10 10 / 7%);
+  --xai-shadow-button: 0 1px 2px rgb(9 9 9 / 8%), 0 2px 8px -4px rgb(9 9 9 / 12%);
+  --xai-shadow-menu: 0 16px 48px -24px rgb(9 9 9 / 28%);
+  --xai-shadow-card: 0 1px 2px rgb(9 9 9 / 4%), 0 14px 36px -28px rgb(9 9 9 / 22%);
+}
+
+html[data-ui-theme="merge-gateway"] ::-webkit-scrollbar { width: 10px; height: 10px; }
+html[data-ui-theme="merge-gateway"] ::-webkit-scrollbar-track { background: transparent; }
+html[data-ui-theme="merge-gateway"] ::-webkit-scrollbar-thumb {
+  background: rgb(10 10 10 / 15%); border: 3px solid transparent;
+  border-radius: var(--xai-radius-pill); background-clip: padding-box;
+}
+html[data-ui-theme="merge-gateway"] ::-webkit-scrollbar-thumb:hover { background-color: rgb(10 10 10 / 25%); }
+
+html[data-ui-theme="merge-gateway"] .sidebar {
+  background: linear-gradient(180deg, #fcfcfb 0%, var(--xai-warm) 100%);
+  border-right: 1px solid var(--xai-border-subtle);
+}
+
+html[data-ui-theme="merge-gateway"] .brand .logo {
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--xai-border);
+}
+html[data-ui-theme="merge-gateway"] .nav:hover { color: var(--xai-ink-console); background: rgb(255 255 255 / 68%); }
+html[data-ui-theme="merge-gateway"] .nav.active {
+  position: relative;
+  background: var(--xai-white);
+  box-shadow: inset 0 0 0 1px var(--xai-border-subtle), 0 3px 12px -8px rgb(9 9 9 / 30%);
+}
+html[data-ui-theme="merge-gateway"] .nav.active::before {
+  content: ""; position: absolute; top: 50%; left: 0;
+  width: 3px; height: 18px; border-radius: inherit;
+  background: var(--xai-orange); transform: translateY(-50%);
+}
+html[data-ui-theme="merge-gateway"] .sidebar-footer a {
+  display: inline-flex; align-items: center; gap: var(--xai-space-1-5);
+  padding: var(--xai-space-1) var(--xai-space-2); margin-left: calc(var(--xai-space-2) * -1);
+  border-radius: var(--xai-radius-pill); text-decoration: none;
+  transition: color var(--xai-duration-default) var(--xai-ease-standard), background-color var(--xai-duration-default) var(--xai-ease-standard);
+}
+html[data-ui-theme="merge-gateway"] .sidebar-footer a:hover { color: var(--xai-ink-console); background: rgb(255 255 255 / 72%); }
+
+html[data-ui-theme="merge-gateway"] .content > header {
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 1px 0 rgb(10 10 10 / 4%);
+}
+
+html[data-ui-theme="merge-gateway"] main {
+  max-width: 1480px; margin-inline: auto;
+  animation: view-enter var(--xai-duration-slow) var(--xai-ease-page);
+}
+
+@keyframes view-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+html[data-ui-theme="merge-gateway"] .primary,
+html[data-ui-theme="merge-gateway"] .outline,
+html[data-ui-theme="merge-gateway"] .danger,
+html[data-ui-theme="merge-gateway"] .theme-trigger,
+html[data-ui-theme="merge-gateway"] .profile-page-nav button {
+  will-change: auto;
+}
+html[data-ui-theme="merge-gateway"] .primary:hover:not(:disabled) { color: var(--xai-white); background: #232323; border-color: #232323; box-shadow: 0 6px 18px -10px rgb(9 9 9 / 55%); }
+html[data-ui-theme="merge-gateway"] .primary:active:not(:disabled),
+html[data-ui-theme="merge-gateway"] .outline:active:not(:disabled),
+html[data-ui-theme="merge-gateway"] .danger:active:not(:disabled),
+html[data-ui-theme="merge-gateway"] .mini:active:not(:disabled) { transform: scale(.98); }
+html[data-ui-theme="merge-gateway"] .outline:hover:not(:disabled),
+html[data-ui-theme="merge-gateway"] .theme-trigger:hover { color: var(--xai-ink-console); background: var(--xai-fill-soft); border-color: rgb(10 10 10 / 20%); }
+html[data-ui-theme="merge-gateway"] .danger:hover:not(:disabled) { background: var(--xai-danger-soft); border-color: var(--xai-danger-border); }
+html[data-ui-theme="merge-gateway"] .mini:hover:not(:disabled) { color: var(--xai-ink-console); background: var(--xai-fill-soft); border-color: var(--xai-border-hover); }
+
+html[data-ui-theme="merge-gateway"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+html[data-ui-theme="merge-gateway"] select,
+html[data-ui-theme="merge-gateway"] textarea,
+html[data-ui-theme="merge-gateway"] .themed-select-button {
+  transition: border-color var(--xai-duration-default) var(--xai-ease-standard), background-color var(--xai-duration-default) var(--xai-ease-standard), box-shadow var(--xai-duration-default) var(--xai-ease-standard);
+}
+html[data-ui-theme="merge-gateway"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):hover:not(:disabled),
+html[data-ui-theme="merge-gateway"] select:hover:not(:disabled),
+html[data-ui-theme="merge-gateway"] textarea:hover:not(:disabled),
+html[data-ui-theme="merge-gateway"] .themed-select-button:hover:not(:disabled) { border-color: rgb(10 10 10 / 17%) !important; }
+html[data-ui-theme="merge-gateway"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):focus-visible,
+html[data-ui-theme="merge-gateway"] select:focus-visible,
+html[data-ui-theme="merge-gateway"] textarea:focus-visible,
+html[data-ui-theme="merge-gateway"] .themed-select-button:focus-visible {
+  border-color: rgb(10 10 10 / 42%) !important;
+  box-shadow: 0 0 0 4px rgb(255 100 10 / 10%) !important;
+}
+html[data-ui-theme="merge-gateway"] .search:focus-within {
+  color: var(--xai-ink-console); background: var(--xai-white);
+  border-color: rgb(10 10 10 / 42%) !important; box-shadow: 0 0 0 4px rgb(255 100 10 / 10%);
+}
+
+html[data-ui-theme="merge-gateway"] .tabs.active,
+html[data-ui-theme="merge-gateway"] .editor-tabs button.active,
+html[data-ui-theme="merge-gateway"] .console-tabs button.active {
+  background: var(--xai-white);
+  box-shadow: inset 0 0 0 1px var(--xai-border-subtle), 0 3px 10px -8px rgb(9 9 9 / 38%);
+}
+
+html[data-ui-theme="merge-gateway"] .table-card,
+html[data-ui-theme="merge-gateway"] .rpa-table-wrap,
+html[data-ui-theme="merge-gateway"] .rpa-section,
+html[data-ui-theme="merge-gateway"] .settings-card {
+  box-shadow: var(--xai-shadow-card);
+}
+html[data-ui-theme="merge-gateway"] tbody tr:hover { background: rgb(10 10 10 / 2%); transition: none; }
+html[data-ui-theme="merge-gateway"] thead th,
+html[data-ui-theme="merge-gateway"] .table-card thead th {
+  position: sticky; top: 0; z-index: 1;
+  color: var(--xai-secondary);
+  background: #fbfbf9;
+  font-size: 12px; letter-spacing: .04em; text-transform: uppercase;
+}
+html[data-ui-theme="merge-gateway"] tbody tr:hover { background: rgb(10 10 10 / 2%); }
+html[data-ui-theme="merge-gateway"] tbody tr.selected-row,
+html[data-ui-theme="merge-gateway"] .sync-table tbody tr.master-row { background: rgb(255 100 10 / 6%) !important; }
+
+html[data-ui-theme="merge-gateway"] .empty,
+html[data-ui-theme="merge-gateway"] .sync-empty,
+html[data-ui-theme="merge-gateway"] .rpa-table-empty {
+  border-radius: calc(var(--xai-radius-panel) - 1px);
+  border-top: 1px solid var(--xai-border-subtle);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0%) 52%, rgb(10 10 10 / 2%) 100%);
+}
+
+html[data-ui-theme="merge-gateway"] .table-card:has(.empty:not([hidden])) table { display: none; }
+
+html[data-ui-theme="merge-gateway"] dialog[open] { animation: dialog-enter var(--xai-duration-slow) var(--xai-ease-page); }
+html[data-ui-theme="merge-gateway"] dialog::backdrop { background: rgb(9 9 9 / 32%); backdrop-filter: blur(4px); }
+
+html[data-ui-theme="merge-gateway"] .primary,
+html[data-ui-theme="merge-gateway"] .outline,
+html[data-ui-theme="merge-gateway"] .danger,
+html[data-ui-theme="merge-gateway"] .mini,
+html[data-ui-theme="merge-gateway"] .nav,
+html[data-ui-theme="merge-gateway"] .theme-trigger {
+  transition-duration: var(--xai-duration-fast);
+}
+
+html[data-ui-theme="merge-gateway"] .table-card:has(.empty:not([hidden])) table,
+html[data-ui-theme="merge-gateway"] .rpa-table-wrap:has(.rpa-table-empty:not([hidden])) table { display: none; }
+
+@keyframes dialog-enter {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 html[data-ui-theme="merge-gateway"] .sidebar .nav > svg.nav-chevron.lucide,
 html[data-ui-theme="merge-gateway"] .sidebar .nav > i[data-lucide].nav-chevron {
   width: 13.5px !important; height: 13.5px !important; min-width: 13.5px !important;
