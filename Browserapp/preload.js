@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('ops', Object.freeze({
   rpaGetPlan: (id) => ipcRenderer.invoke('automation:rpa-get-plan', id),
   rpaSavePlan: (plan) => ipcRenderer.invoke('automation:rpa-save-plan', plan),
   rpaDeletePlan: (id) => ipcRenderer.invoke('automation:rpa-delete-plan', id),
+  rpaTaskDelete: (ids) => ipcRenderer.invoke('automation:rpa-task-delete', ids),
   rpaRun: (payload) => ipcRenderer.invoke('automation:rpa-run', payload),
   rpaStop: (taskId) => ipcRenderer.invoke('automation:rpa-stop', taskId),
   rpaTemplates: (filter) => ipcRenderer.invoke('automation:rpa-templates', filter || {}),
