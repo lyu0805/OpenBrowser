@@ -7,42 +7,9 @@
  */
 
 const RECOMMENDED_APPS = [
-  {
-    id: 'rec-canvas-defender',
-    name: 'Canvas Defender',
-    category: 'privacy',
-    description: '通过向 Canvas 添加噪点防指纹追踪',
-    store_id: 'obdbgnebcljmgkoljcdddaopadkifnpm',
-    store_url: 'https://chromewebstore.google.com/detail/canvas-defender/obdbgnebcljmgkoljcdddaopadkifnpm',
-    tags: ['privacy', 'anti-detect'],
-  },
-  {
-    id: 'rec-webrtc-control',
-    name: 'WebRTC Control',
-    category: 'privacy',
-    description: '防止 WebRTC 泄漏真实 IP',
-    store_id: 'fjkmabmdepjfammlkbgkcfbkamcgkdeg',
-    store_url: 'https://chromewebstore.google.com/detail/webrtc-control/fjkmabmdepjfammlkbgkcfbkamcgkdeg',
-    tags: ['privacy', 'webrtc'],
-  },
-  {
-    id: 'rec-spoof-timezone',
-    name: 'Spoof Timezone',
-    category: 'privacy',
-    description: '自动根据 IP 伪装浏览器时区',
-    store_id: 'kcabmhnajflfolpjhminmbkgmlpjnbjc',
-    store_url: 'https://chromewebstore.google.com/detail/spoof-timezone/kcabmhnajflfolpjhminmbkgmlpjnbjc',
-    tags: ['privacy', 'timezone'],
-  },
-  {
-    id: 'rec-audioctx-defender',
-    name: 'AudioContext Defender',
-    category: 'privacy',
-    description: '防 AudioContext 声音指纹探测',
-    store_id: 'pmlkpdfnjdmoenlamjdfeoojifpejioc',
-    store_url: 'https://chromewebstore.google.com/detail/audiocontext-defender/pmlkpdfnjdmoenlamjdfeoojifpejioc',
-    tags: ['privacy', 'anti-detect'],
-  },
+  // Anti-fingerprint entries (canvas/webgl/audio/webrtc/timezone) are deliberately
+  // excluded: engine fingerprint injection owns those surfaces, and stacking store
+  // extensions on top breaks per-profile fingerprint consistency.
   {
     id: 'rec-proxy-switchyomega',
     name: 'Proxy SwitchyOmega',
