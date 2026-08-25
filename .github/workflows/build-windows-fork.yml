@@ -60,12 +60,13 @@ jobs:
           sparse-checkout-cone-mode: false
       - name: Restore windows-x64 kernel seed from release asset
         working-directory: ${{ github.workspace }}
+        shell: pwsh
         run: |
-          set -euo pipefail
-          gh release download kernel-seed --repo "$GITHUB_REPOSITORY" --pattern 'windows-x64-kernel.zip' --output "$RUNNER_TEMP/kernel.zip"
-          # bsdtar reads zip; archive root contains windows-x64/, stubs get overwritten.
-          tar -xf "$RUNNER_TEMP/kernel.zip" -C Browserapp/kernels
-          rm "$RUNNER_TEMP/kernel.zip"
+          $ErrorActionPreference = 'Stop'
+          gh release download kernel-seed --repo $env:GITHUB_REPOSITORY --pattern 'windows-x64-kernel.zip' --output "$env:RUNNER_TEMP\kernel.zip"
+          # Expand-Archive overwrites the LFS pointer stubs (-Force).
+          Expand-Archive -LiteralPath "$env:RUNNER_TEMP\kernel.zip" -DestinationPath "Browserapp\kernels" -Force
+          Remove-Item "$env:RUNNER_TEMP\kernel.zip"
       - name: Prune foreign kernels
         run: rm -rf kernels/macos-x64 kernels/macos-arm64 kernels/openbrowser kernels/wayfern/macos-arm64 kernels/wayfern/macos-x64 || true
       - uses: actions/setup-node@v4
