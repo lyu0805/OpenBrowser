@@ -39,6 +39,37 @@ node scripts/read-rpa-log.js --tail 120
 
 如果内核拒绝 CDP/RPA 自动化，任务结果和日志会明确写出原因，避免只看到 `Browser exited before CDP was ready`。
 
+## 任务结果与容量控制
+
+任务完成后，`POST /api/rpa/run` 的返回值和任务的 `process_result` 都包含：
+
+| 字段 | 说明 |
+|------|------|
+| `variables` | 运行结束时的变量快照（`evaluate` / `getElement` 等步骤存入的值，自动做尺寸裁剪） |
+| `exports` | 可选。`variableOperation(type=export)` 显式导出的字段集合 |
+| `remarks` | `saveremark` 步骤收集的备注 |
+
+历史任务查询：
+
+```bash
+# 任务列表（新→旧，支持 status / limit 过滤）
+curl -s -H 'api-key: YOUR_API_KEY' 'http://127.0.0.1:50325/api/rpa/tasks?limit=20'
+
+# 单个任务详情（含 process_result 与持久化日志尾部）
+curl -s -H 'api-key: YOUR_API_KEY' http://127.0.0.1:50325/api/rpa/tasks/TASK_ID
+
+# 删除单个任务记录
+curl -s -X DELETE -H 'api-key: YOUR_API_KEY' http://127.0.0.1:50325/api/rpa/tasks/TASK_ID
+```
+
+为避免 `rpa-store.json` 无限膨胀，任务记录做了容量控制（可用环境变量调整）：
+
+- `OPENBROWSER_RPA_TASK_HISTORY`：最多保留的已完结任务数（默认 100；`pending/running` 任务永不淘汰）
+- `OPENBROWSER_RPA_RESULT_CHAR_LIMIT`：结果中单个字符串的最大字符数（默认 20000，超出截断并加 `[truncated N chars]` 标记；数组/对象结构不裁剪，只限字符串长度）
+- `OPENBROWSER_RPA_STORE_LIMIT_MB`：`rpa-store.json` 总大小上限（默认 50MB）。超限时按顺序瘦身：先淘汰旧的已完结任务，再清日志尾部，最后削减剩余任务的 result 载荷（标记为 `__shed`）；计划、模板和未完结任务不受影响
+
+任务日志保持原有行为：每步完整记录并随任务持久化（不做条数或内容裁剪）。提取的值不做结构性删减——`variables` 快照保留完整的数组/对象层级，仅单个字符串超过 2 万字符时截断。`screenshotPage` 截图保存到 `rpa-output/` 并把文件路径写入变量。
+
 ## 启动
 
 随 OpenBrowser 主进程自动启动 Local API。
@@ -91,3 +122,5 @@ OPENBROWSER_API_PORT=50325 OPENBROWSER_API_KEY=YOUR_API_KEY node automation/mcp-
 ```
 
 `YOUR_API_KEY` 从 UI 的 API & MCP 页面复制；Cursor 配置示例见 `mcp-server.js` 文件头注释。
+
+RPA 相关的 MCP 工具：`rpa_run_steps`（执行步骤，返回值含 `variables`/`exports`/`remarks`）、`rpa_task_result`（按 id 查询单个任务结果）、`rpa_tasks`（任务列表）、`rpa_status` / `rpa_stop`。

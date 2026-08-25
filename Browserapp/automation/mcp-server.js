@@ -136,6 +136,26 @@ const TOOLS = [
     },
   },
   {
+    name: 'rpa_task_result',
+    description: 'Get one RPA task by id, including process_result (variables / exports / remarks) and the persisted log tail',
+    inputSchema: {
+      type: 'object',
+      properties: { task_id: { type: 'string' } },
+      required: ['task_id'],
+    },
+  },
+  {
+    name: 'rpa_tasks',
+    description: 'List RPA tasks newest first (optionally filtered by status)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', description: 'running | success | failed | cancelled' },
+        limit: { type: 'number', description: 'max tasks to return (default 50)' },
+      },
+    },
+  },
+  {
     name: 'list_applications',
     description: 'List application center apps (team / recommended / local)',
     inputSchema: {
@@ -191,6 +211,15 @@ async function callTool(name, args = {}) {
       return request('GET', '/api/rpa/status');
     case 'rpa_stop':
       return request('POST', '/api/rpa/stop', { task_id: args.task_id });
+    case 'rpa_task_result':
+      return request('GET', '/api/rpa/tasks/' + encodeURIComponent(String(args.task_id || '')));
+    case 'rpa_tasks': {
+      const params = new URLSearchParams();
+      if (args.status) params.set('status', String(args.status));
+      if (args.limit) params.set('limit', String(args.limit));
+      const qs = params.toString();
+      return request('GET', '/api/rpa/tasks' + (qs ? '?' + qs : ''));
+    }
     case 'list_applications': {
       const params = new URLSearchParams();
       if (args.tab) params.set('tab', args.tab);
