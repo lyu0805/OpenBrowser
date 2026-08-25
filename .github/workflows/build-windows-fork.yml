@@ -1,0 +1,117 @@
+name: Build Windows installer (fork)
+
+# Fork variant of build-installers.yml for the Windows x86_64 job.
+# Upstream restores kernels via Git LFS (lfs: true); this fork cannot — the
+# upstream repo's LFS budget is exhausted, so a checkout pulls pointer stubs.
+# Instead the Wayfern seed is restored from the `kernel-seed` prerelease
+# asset (windows-x64-kernel.zip) uploaded once via:
+#   gh release create kernel-seed --prerelease ... Browserapp/kernels/windows-x64-kernel.zip
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to publish (created if missing), for example v1.0.5'
+        required: true
+        default: 'v1.0.4'
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.release_tag }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  windows-x86_64:
+    name: Windows x86_64 (with kernel)
+    runs-on: windows-2022
+    timeout-minutes: 90
+    concurrency:
+      group: fork-installers-windows-x86_64
+      cancel-in-progress: true
+    defaults:
+      run:
+        working-directory: Browserapp
+        shell: bash
+    env:
+      OPENBROWSER_PACKAGE_ARCH: x86_64
+      OPENBROWSER_PACKAGE_VARIANT: with-kernel
+      OPENBROWSER_BUNDLE_KERNEL: 'true'
+    steps:
+      - name: Enable Windows long paths for git
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: |
+          git config --global core.longpaths true
+          try {
+            New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force | Out-Null
+          } catch {
+            Write-Host "LongPathsEnabled registry write skipped: $_"
+          }
+      - uses: actions/checkout@v4
+        with:
+          # No lfs:true here on purpose — see the seed-restore step below.
+          sparse-checkout: |
+            /*
+            !/Browserapp/kernels/macos-x64/
+            !/Browserapp/kernels/macos-arm64/
+            !/Browserapp/kernels/openbrowser/
+          sparse-checkout-cone-mode: false
+      - name: Restore windows-x64 kernel seed from release asset
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          gh release download kernel-seed --repo "$GITHUB_REPOSITORY" --pattern 'windows-x64-kernel.zip' --output "$RUNNER_TEMP/kernel.zip"
+          # bsdtar reads zip; archive root contains windows-x64/, stubs get overwritten.
+          tar -xf "$RUNNER_TEMP/kernel.zip" -C Browserapp/kernels
+          rm "$RUNNER_TEMP/kernel.zip"
+      - name: Prune foreign kernels
+        run: rm -rf kernels/macos-x64 kernels/macos-arm64 kernels/openbrowser kernels/wayfern/macos-arm64 kernels/wayfern/macos-x64 || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Browserapp/package-lock.json
+      - run: npm ci --include=dev
+      - name: Verify kernel seed
+        run: |
+          set -euo pipefail
+          test -f kernels/windows-x64/chrome.dll
+          npm run prepare:bundled-kernel
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis --no-progress --yes
+      - name: Self-tests
+        run: |
+          npm run selftest
+          npm run selftest:automation
+          npm run selftest:protocol
+          npm run selftest:isolation
+          npm run selftest:kernel
+      - run: npm run package:portable
+      - name: Verify package
+        run: |
+          set -euo pipefail
+          STEM="OpenBrowser-Windows-x86_64-with-kernel"
+          APP="dist/${STEM}/runtime/resources/app"
+          test -f "$APP/kernels/windows-x64/chrome.exe"
+          test -f "$APP/kernels/windows-x64/chrome.dll"
+          test -f "dist/${STEM}.zip"
+      - name: Ensure release shell
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --target "${{ github.sha }}" --title "OpenBrowser $RELEASE_TAG" --notes "Windows x86_64 fork CI build"
+          fi
+      - name: Upload to release
+        run: |
+          set -euo pipefail
+          notes_file="$RUNNER_TEMP/openbrowser-release-notes.md"
+          printf 'Windows x86_64 fork CI build (integrated kernel).\n' > "$notes_file"
+          assets=(dist/OpenBrowser-Windows-x86_64-with-kernel.zip)
+          if [ -f dist/OpenBrowser-Windows-x86_64-with-kernel.exe ]; then
+            assets=(dist/OpenBrowser-Windows-x86_64-with-kernel.exe dist/OpenBrowser-Windows-x86_64-with-kernel.zip)
+          fi
+          bash scripts/publish-release.sh "$RELEASE_TAG" "$notes_file" "${assets[@]}"
