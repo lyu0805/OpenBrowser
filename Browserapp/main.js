@@ -1891,6 +1891,21 @@ app.whenReady().then(async () => {
     if (!automation) throw new Error('Automation stack is not ready');
     return automation.rpaStore.deletePlan(String(id || ''));
   });
+  registerTrustedIpc('automation:rpa-task-delete', async (_event, ids) => {
+    if (!automation) throw new Error('Automation stack is not ready');
+    const list = [...new Set((Array.isArray(ids) ? ids : [ids]).map((id) => String(id || '').trim()).filter(Boolean))];
+    // Guard on the engine's live running map only: deleting a task mid-run makes
+    // updateTask throw inside the run loop. A persisted status of 'running'
+    // without a map entry is a stale row from a previous session — deletable.
+    const running = new Set(automation.rpaEngine?.getStatus?.().running || []);
+    const deleted = []; const skipped = [];
+    for (const id of list) {
+      if (running.has(id)) { skipped.push(id); continue; }
+      const result = await automation.rpaStore.deleteTask(id);
+      (result.success ? deleted : skipped).push(id);
+    }
+    return { deleted, skipped };
+  });
   registerTrustedIpc('automation:rpa-run', async (_event, payload) => {
     if (!automation) throw new Error('Automation stack is not ready');
     if (payload?.plan_id) return automation.rpaEngine.runPlan(String(payload.plan_id), payload);

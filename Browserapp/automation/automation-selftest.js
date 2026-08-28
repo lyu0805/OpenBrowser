@@ -601,6 +601,7 @@ async function main() {
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_run_steps'));
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_task_result'), 'mcp exposes task result retrieval');
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_tasks'), 'mcp exposes task listing');
+  assert.ok(TOOLS.some((tool) => tool.name === 'rpa_task_delete'), 'mcp exposes task delete');
   ok('mcp tools registered (' + TOOLS.length + ')');
 
   // Point MCP request helper at our server by temporarily monkey-patching env... callTool uses fixed env.

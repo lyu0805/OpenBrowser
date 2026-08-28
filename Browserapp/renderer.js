@@ -4652,6 +4652,7 @@ async function refreshRpaTasks() {
   for (const t of list) {
     const row = document.createElement('tr');
     const cb = document.createElement('input'); cb.type = 'checkbox';
+    cb.dataset.rpaTaskCheck = t.id;
     const td0 = document.createElement('td'); td0.append(cb);
     const runBtn = element('button', 'outline', tx('详情'));
     runBtn.onclick = () => {
@@ -4659,7 +4660,9 @@ async function refreshRpaTasks() {
       showRpaPanel('runs');
       toast(tx('见运行记录/日志'));
     };
-    const tdOp = document.createElement('td'); tdOp.append(runBtn);
+    const delBtn = element('button', 'outline rpa-btn-danger', tx('删除'));
+    delBtn.onclick = () => deleteRpaTasks([t.id]);
+    const tdOp = document.createElement('td'); tdOp.append(runBtn, delBtn);
     row.append(
       td0,
       element('td', '', t.process_name || t.id),
@@ -4672,6 +4675,9 @@ async function refreshRpaTasks() {
     );
     table.append(row);
   }
+  // Rows re-render unchecked; keep the header checkbox consistent with them.
+  const selectAll = document.getElementById('rpa-task-select-all');
+  if (selectAll) selectAll.checked = false;
   if (empty) {
     empty.style.display = list.length ? 'none' : 'grid';
   }
@@ -4691,6 +4697,9 @@ async function refreshRpaRuns() {
   if (q) list = list.filter((t) => String(t.process_name || '').toLowerCase().includes(q));
   for (const t of list) {
     const row = document.createElement('tr');
+    const delBtn = element('button', 'outline rpa-btn-danger', tx('删除'));
+    delBtn.onclick = () => deleteRpaTasks([t.id]);
+    const tdOp = document.createElement('td'); tdOp.append(delBtn);
     row.append(
       element('td', '', t.process_name || t.id),
       element('td', '', t.process_name || '—'),
@@ -4698,11 +4707,25 @@ async function refreshRpaRuns() {
       element('td', '', t.status || '—'),
       element('td', '', String(t.start_time || t.create_time || '—').replace('T', ' ').slice(0, 19)),
       element('td', '', String(t.complete_time || '—').replace('T', ' ').slice(0, 19)),
-      element('td', '', '')
+      tdOp
     );
     table.append(row);
   }
   if (empty) empty.style.display = list.length ? 'none' : 'grid';
+}
+
+async function deleteRpaTasks(ids) {
+  if (!ids.length) { toast(tx('请先勾选要删除的任务')); return; }
+  if (!confirm(tx(ids.length > 1 ? `确定删除选中的 ${ids.length} 个任务及其运行记录？` : '确定删除该任务及其运行记录？'))) return;
+  try {
+    const result = await window.ops.rpaTaskDelete(ids);
+    await refreshRpaTasks();
+    await refreshRpaRuns();
+    if (result.skipped?.length) toast(tx(`已删除 ${result.deleted.length} 个，已跳过 ${result.skipped.length} 个（运行中或已不存在）`));
+    else toast(tx(`已删除 ${result.deleted.length} 个任务`));
+  } catch (error) {
+    toast('删除失败：' + error.message);
+  }
 }
 
 function rpaCategoryLabel(cat) {
@@ -4967,6 +4990,13 @@ document.getElementById('rpa-new-plan-2')?.addEventListener('click', () => creat
 document.getElementById('rpa-create-task')?.addEventListener('click', () => createRpaPlan('任务流程 ' + new Date().toLocaleString()).catch((e) => toast(e.message)));
 document.getElementById('rpa-refresh')?.addEventListener('click', refreshRpaPage);
 document.getElementById('rpa-task-refresh')?.addEventListener('click', refreshRpaTasks);
+document.getElementById('rpa-task-delete-checked')?.addEventListener('click', () => {
+  const ids = [...document.querySelectorAll('[data-rpa-task-check]:checked')].map((el) => el.dataset.rpaTaskCheck);
+  deleteRpaTasks(ids);
+});
+document.getElementById('rpa-task-select-all')?.addEventListener('change', (event) => {
+  for (const el of document.querySelectorAll('[data-rpa-task-check]')) el.checked = event.target.checked;
+});
 document.getElementById('rpa-run-refresh')?.addEventListener('click', refreshRpaRuns);
 document.getElementById('rpa-flow-search')?.addEventListener('input', renderRpaPlans);
 document.getElementById('rpa-task-search')?.addEventListener('input', refreshRpaTasks);

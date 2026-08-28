@@ -101,6 +101,7 @@ function toolsMeta() {
     ['window_sync_settings_get', 'Get current multi-window sync settings', { type: 'object', properties: {}, additionalProperties: false }, 'read', 'GET', '/api/sync/settings', null],
     ['rpa_plans_list', 'List saved RPA plans', { type: 'object', properties: {}, additionalProperties: false }, 'read', 'GET', '/api/rpa/plans', null],
     ['rpa_tasks_list', 'List RPA tasks', { type: 'object', properties: { status: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 500 } }, additionalProperties: false }, 'read', 'GET', '/api/rpa/tasks', null],
+    ['rpa_task_delete', 'Delete one RPA task (and its run record) by id', { type: 'object', properties: { task_id: { type: 'string' } }, required: ['task_id'], additionalProperties: false }, 'manage', 'DELETE', '/api/rpa/tasks/', null],
     ['rpa_task_result', 'Get one RPA task by id, including process_result (variables / exports / remarks) and persisted logs', { type: 'object', properties: { task_id: { type: 'string' } }, required: ['task_id'], additionalProperties: false }, 'read', 'GET', '/api/rpa/tasks/', null],
     ['rpa_tasks', 'List RPA tasks newest first (optionally filtered by status)', { type: 'object', properties: { status: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 500 } }, additionalProperties: false }, 'read', 'GET', '/api/rpa/tasks', null],
     ['rpa_templates_list', 'List RPA templates and categories', { type: 'object', properties: { category: { type: 'string' } }, additionalProperties: false }, 'read', 'GET', '/api/rpa/templates', null],
@@ -356,6 +357,8 @@ async function callTool(name, args = {}) {
       return request('GET', '/api/rpa/tasks' + queryString(args));
     case 'rpa_task_result':
       return request('GET', '/api/rpa/tasks/' + encodeURIComponent(String(args.task_id || '')));
+    case 'rpa_task_delete':
+      return request('DELETE', '/api/rpa/tasks/' + encodeURIComponent(String(args.task_id || '')));
     case 'rpa_tasks':
       return request('GET', '/api/rpa/tasks' + queryString(args));
     case 'rpa_templates_list':
