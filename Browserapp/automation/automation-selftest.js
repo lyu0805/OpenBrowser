@@ -210,6 +210,19 @@ async function main() {
   assert.ok(persistedTask.process_result && typeof persistedTask.process_result.variables === 'object', 'finished task persists process_result.variables');
   ok('rpa-engine wait/noop task');
 
+  // Failed tasks return the values collected before the failing step as well.
+  const failedTask = await store.createTask({
+    profile_id: 'p1',
+    process_name: 'failure-result',
+    steps: [{ type: 'unsupported-step-for-selftest' }],
+    variables: { before: 'kept' },
+  });
+  const failedRun = await rpa.runTask(failedTask.id);
+  assert.strictEqual(failedRun.success, false, 'failure-result task fails');
+  assert.ok(failedRun.result && failedRun.result.variables?.before === 'kept', 'failed RPA run returns collected variables');
+  assert.ok(store.getTask(failedTask.id).process_result.variables?.before === 'kept', 'failed task persists collected variables');
+  ok('rpa-engine failure result channel');
+
   // Result snapshots: strings capped at the result char limit, structure kept whole.
   const circular = { name: 'loop' };
   circular.self = circular;
@@ -602,9 +615,9 @@ async function main() {
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_task_result'), 'mcp exposes task result retrieval');
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_tasks'), 'mcp exposes task listing');
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_run_plan'), 'mcp exposes saved-plan run');
-  assert.ok(TOOLS.some((tool) => tool.name === 'rpa_plans'), 'mcp exposes plan management');
+  assert.ok(TOOLS.some((tool) => tool.name === 'rpa_plans_list'), 'mcp exposes plan management');
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_task_delete'), 'mcp exposes task delete');
-  assert.ok(TOOLS.some((tool) => tool.name === 'profile_create'), 'mcp exposes profile create');
+  assert.ok(TOOLS.some((tool) => tool.name === 'create_profile'), 'mcp exposes profile create');
   assert.ok(TOOLS.some((tool) => tool.name === 'proxy_create'), 'mcp exposes proxy management');
   assert.ok(TOOLS.some((tool) => tool.name === 'extension_assign'), 'mcp exposes extension assignment');
   assert.ok(TOOLS.length >= 30, 'mcp tool surface covers local api domains');

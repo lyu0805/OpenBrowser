@@ -4035,7 +4035,13 @@ $('#proxy-dialog-test')?.addEventListener('click', async () => {
     const draft = readProxyForm();
     output.className = 'proxy-test-result';
     output.textContent = tx('正在检测…');
-    const result = await window.ops.proxyCheck(draft.id ? { id: draft.id } : { proxy: draft.raw || undefined, ...draft });
+    let proxyValue = draft.raw;
+    if (!proxyValue && draft.host && Number.isInteger(draft.port) && draft.port > 0 && draft.port <= 65535) {
+      const auth = draft.username ? `${encodeURIComponent(draft.username)}:${encodeURIComponent(draft.password || '')}@` : '';
+      proxyValue = `${draft.protocol || 'socks5'}://${auth}${draft.host}:${draft.port}`;
+    }
+    if (!proxyValue) throw new Error(tx('请先填写主机和端口'));
+    const result = await window.ops.proxyCheck(draft.id ? { id: draft.id } : { proxy: proxyValue, ...draft });
     output.className = 'proxy-test-result success';
     output.textContent = tx('连接成功 · ') + result.ip + (result.countryCode ? ' · ' + result.countryCode : '');
     if (draft.id) await refreshProxies();
@@ -5217,6 +5223,7 @@ async function refreshApiMcpPage() {
   const mcpTa = document.getElementById('mcp-config-json');
   const mcpHint = document.getElementById('mcp-cmd-hint');
   const curlHint = document.getElementById('api-curl-hint');
+  const keyNote = document.getElementById('mcp-key-note');
   try {
     const info = await window.ops.localApiInfo();
     const paths = await window.ops.mcpPaths();
@@ -5231,6 +5238,12 @@ async function refreshApiMcpPage() {
     if (keyEl) keyEl.value = apiKey;
     if (keyEl && !apiKey) keyEl.placeholder = tx('未设置（可选环境变量 OPENBROWSER_API_KEY）');
     const mcpScript = paths?.mcpScript || '';
+    const keyPlaceholder = apiKey || '<从上方 API Key 框复制>';
+    if (keyNote) {
+      keyNote.textContent = apiKey
+        ? '配置已写入当前 API Key。如要限制 AI 权限，请在 MCP 环境变量中追加 OPENBROWSER_MCP_MODE=manage|run|read（可选黑/白名单）。'
+        : '未取到 API Key：请先从上方 API Key 框复制，再手动填入下方配置；否则 MCP 会返回 401。';
+    }
     const common = {
       mcpServers: {
         'openbrowser-local-api': {
@@ -5239,8 +5252,8 @@ async function refreshApiMcpPage() {
           env: {
             PORT: String(port),
             OPENBROWSER_API_PORT: String(port),
-            API_KEY: apiKey || 'your_api_key',
-            OPENBROWSER_API_KEY: apiKey || 'your_api_key',
+            API_KEY: keyPlaceholder,
+            OPENBROWSER_API_KEY: keyPlaceholder,
           },
         },
       },
@@ -5253,15 +5266,15 @@ async function refreshApiMcpPage() {
           args: [mcpScript],
           env: {
             OPENBROWSER_API_PORT: String(port),
-            OPENBROWSER_API_KEY: apiKey || 'your_api_key',
+            OPENBROWSER_API_KEY: keyPlaceholder,
           },
         },
       },
     };
     const tab = document.querySelector('#mcp-config-tabs button.active')?.dataset.mcpTab || 'common';
     if (mcpTa) mcpTa.textContent = JSON.stringify(tab === 'platform' ? window.__mcpConfigPlatform : window.__mcpConfigCommon, null, 2);
-    if (mcpHint) mcpHint.textContent = 'OPENBROWSER_API_PORT=' + shellQuote(port) + (apiKey ? ' OPENBROWSER_API_KEY=' + shellQuote(apiKey) : '') + ' node ' + shellQuote(mcpScript);
-    if (curlHint) curlHint.textContent = 'curl -s -H ' + shellQuote('api-key: ' + (apiKey || 'your_api_key')) + ' ' + shellQuote(base + 'api/getVersion');
+    if (mcpHint) mcpHint.textContent = 'OPENBROWSER_API_PORT=' + shellQuote(port) + ' OPENBROWSER_API_KEY=' + shellQuote(keyPlaceholder) + ' node ' + shellQuote(mcpScript);
+    if (curlHint) curlHint.textContent = 'curl -s -H ' + shellQuote('api-key: ' + keyPlaceholder) + ' ' + shellQuote(base + 'api/getVersion');
     setLocalApiStatus(!!info);
   } catch (error) {
     if (pill) { pill.textContent = tx('未启动'); pill.classList.add('off'); }

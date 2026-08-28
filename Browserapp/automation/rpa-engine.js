@@ -395,7 +395,7 @@ class RpaEngine {
         process_logs: logs,
       });
       this.emit({ type: 'rpa-task', taskId, status, profileId: task.profile_id, message });
-      return { success: false, taskId, error: message, status };
+      return { success: false, taskId, error: message, status, result: failureResult };
     } finally {
       this.running.delete(taskId);
       this.cancelled.delete(taskId);
