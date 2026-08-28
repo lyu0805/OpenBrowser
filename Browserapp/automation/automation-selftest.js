@@ -612,6 +612,8 @@ async function main() {
   assert.ok(TOOLS.some((tool) => tool.name === 'list_applications'));
   assert.ok(TOOLS.some((tool) => tool.name === 'window_sync_start'));
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_run_steps'));
+  const runStepsTool = TOOLS.find((tool) => tool.name === 'rpa_run_steps');
+  assert.ok(runStepsTool.inputSchema.properties.wait, 'rpa_run_steps exposes wait for async runs');
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_task_result'), 'mcp exposes task result retrieval');
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_tasks'), 'mcp exposes task listing');
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_run_plan'), 'mcp exposes saved-plan run');
