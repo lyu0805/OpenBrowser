@@ -13,6 +13,20 @@
  *   OPENBROWSER_MCP_MODE=admin|manage|run|read
  *   OPENBROWSER_MCP_TOOL_BLACKLIST=json array of tool names
  *   OPENBROWSER_MCP_TOOL_WHITELIST=json array of tool names
+ *
+ * Run standalone:
+ *   OPENBROWSER_API_PORT=50325 OPENBROWSER_API_KEY=your_api_key node automation/mcp-server.js
+ *
+ * Cursor / Claude Desktop config example:
+ * {
+ *   "mcpServers": {
+ *     "openbrowser-local-api": {
+ *       "command": "node",
+ *       "args": ["/path/to/Browserapp/automation/mcp-server.js"],
+ *       "env": { "OPENBROWSER_API_PORT": "50325", "OPENBROWSER_API_KEY": "your_api_key" }
+ *     }
+ *   }
+ * }
  */
 
 const http = require('http');
@@ -38,7 +52,7 @@ function parseJsonEnv(value, fallback) {
   }
 }
 
-function request(method, path, body) {
+function request(method, path, body, options = {}) {
   const payload = body === undefined ? null : JSON.stringify(body);
   return new Promise((resolve, reject) => {
     const req = http.request({
@@ -51,7 +65,7 @@ function request(method, path, body) {
         ...(API_KEY ? { 'api-key': API_KEY } : {}),
         ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}),
       },
-      timeout: 60000,
+      timeout: Number(options.timeout) || 60000,
     }, (res) => {
       let data = '';
       res.setEncoding('utf8');
@@ -100,7 +114,6 @@ function toolsMeta() {
     ['isolation_audit', 'Audit isolation collisions (user-data dirs and CDP ports)', { type: 'object', properties: {}, additionalProperties: false }, 'read', 'GET', '/api/isolation/audit', null],
     ['window_sync_settings_get', 'Get current multi-window sync settings', { type: 'object', properties: {}, additionalProperties: false }, 'read', 'GET', '/api/sync/settings', null],
     ['rpa_plans_list', 'List saved RPA plans', { type: 'object', properties: {}, additionalProperties: false }, 'read', 'GET', '/api/rpa/plans', null],
-    ['rpa_tasks_list', 'List RPA tasks', { type: 'object', properties: { status: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 500 } }, additionalProperties: false }, 'read', 'GET', '/api/rpa/tasks', null],
     ['rpa_task_result', 'Get one RPA task by id, including process_result (variables / exports / remarks) and persisted logs', { type: 'object', properties: { task_id: { type: 'string' } }, required: ['task_id'], additionalProperties: false }, 'read', 'GET', '/api/rpa/tasks/', null],
     ['rpa_tasks', 'List RPA tasks newest first (optionally filtered by status)', { type: 'object', properties: { status: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 500 } }, additionalProperties: false }, 'read', 'GET', '/api/rpa/tasks', null],
     ['rpa_templates_list', 'List RPA templates and categories', { type: 'object', properties: { category: { type: 'string' } }, additionalProperties: false }, 'read', 'GET', '/api/rpa/templates', null],
@@ -169,10 +182,14 @@ function toolsMeta() {
     ['window_sync_arrange', 'Arrange windows in tile or cascade mode', { type: 'object', properties: { profile_ids: { type: 'array', items: { type: 'string' } }, mode: { type: 'string', enum: ['tile', 'cascade'] } }, additionalProperties: false }, 'run', 'POST', '/api/sync/arrange', null],
     ['window_sync_settings_update', 'Update multi-window sync settings', { type: 'object', properties: { settings: { type: 'object' } }, required: ['settings'], additionalProperties: false }, 'manage', 'POST', '/api/sync/settings', null],
     // RPA
-    ['rpa_run_steps', 'Run RPA steps on a running profile', { type: 'object', properties: {
+    ['rpa_run_steps', 'Run RPA steps on a running profile. Set wait:false to get a task_id immediately and poll rpa_task_result', { type: 'object', properties: {
       profile_id: { type: 'string' }, steps: { type: 'array', items: { type: 'object' } }, name: { type: 'string' },
+      wait: { type: 'boolean', description: 'default true (blocks up to 10 min); false returns task_id immediately' },
     }, required: ['profile_id', 'steps'], additionalProperties: false }, 'run', 'POST', '/api/rpa/run', null],
-    ['rpa_run_plan', 'Run a saved RPA plan', { type: 'object', properties: { plan_id: { type: 'string' }, name: { type: 'string' } }, required: ['plan_id'], additionalProperties: false }, 'run', 'POST', '/api/rpa/run', null],
+    ['rpa_run_plan', 'Run a saved RPA plan. Set wait:false to start it and poll rpa_task_result / rpa_tasks', { type: 'object', properties: {
+      plan_id: { type: 'string' }, name: { type: 'string' },
+      wait: { type: 'boolean', description: 'default true (blocks up to 10 min); false returns task_id immediately' },
+    }, required: ['plan_id'], additionalProperties: false }, 'run', 'POST', '/api/rpa/run', null],
     ['rpa_stop', 'Stop RPA task(s)', { type: 'object', properties: { task_id: { type: 'string' } }, additionalProperties: false }, 'run', 'POST', '/api/rpa/stop', null],
     ['rpa_plan_save', 'Create or update an RPA plan', { type: 'object', properties: {
       plan_name: { type: 'string' }, profile_ids: { type: 'array', items: { type: 'string' } }, steps: { type: 'array', items: { type: 'object' } }, plan_id: { type: 'string' },
@@ -339,9 +356,14 @@ async function callTool(name, args = {}) {
         profile_id: args.profile_id,
         steps: args.steps,
         name: args.name || 'mcp-rpa',
-      });
+        wait: args.wait !== false,
+      }, { timeout: args.wait === false ? 30000 : 600000 });
     case 'rpa_run_plan':
-      return request('POST', '/api/rpa/run', { plan_id: args.plan_id, name: args.name });
+      return request('POST', '/api/rpa/run', {
+        plan_id: args.plan_id,
+        name: args.name,
+        wait: args.wait !== false,
+      }, { timeout: args.wait === false ? 30000 : 600000 });
     case 'rpa_status':
       return request('GET', '/api/rpa/status');
     case 'rpa_stop':
@@ -352,8 +374,6 @@ async function callTool(name, args = {}) {
       return request('POST', '/api/rpa/plans', args);
     case 'rpa_plan_delete':
       return request('DELETE', `/api/rpa/plans/${encodeURIComponent(args.plan_id)}`);
-    case 'rpa_tasks_list':
-      return request('GET', '/api/rpa/tasks' + queryString(args));
     case 'rpa_task_result':
       return request('GET', '/api/rpa/tasks/' + encodeURIComponent(String(args.task_id || '')));
     case 'rpa_tasks':

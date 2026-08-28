@@ -172,6 +172,8 @@ MCP 提供 45+ 个工具，覆盖：
 - RPA：计划 / 任务 / 模板 / 运行 / 停止 / 结果查询 / 历史清理
 - 应用中心：列表
 
+RPA 执行链路：`rpa_run_steps` / `rpa_run_plan` 支持 `wait:false` 立即返回 task_id，再用 `rpa_task_result` 轮询（返回值含 `variables` / `exports` / `remarks`）；同步等待最长 10 分钟。长任务务必用异步模式，否则会撞上客户端超时。
+
 ### 权限控制
 
 每个工具标注最低权限等级，`tools/list` 和 `tools/call` 都会执行检查：

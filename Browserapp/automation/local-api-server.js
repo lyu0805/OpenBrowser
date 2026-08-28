@@ -621,14 +621,36 @@ class LocalApiServer {
       return ok(await this.rpaStore.deleteTask(id));
     }
     if (pathname === '/api/rpa/run' || pathname === '/api/rpa' || pathname === '/api/rpav2') {
-      if (input.plan_id) return ok(await this.rpaEngine.runPlan(String(input.plan_id), input));
-      if (input.task_id) return ok(await this.rpaEngine.runTask(String(input.task_id), input));
+      // wait:false starts the run and returns task ids immediately — poll
+      // /api/rpa/tasks/:id for the outcome. Keeps long runs off synchronous
+      // client timeouts (runTask awaits every step otherwise).
+      const wait = input.wait !== false && input.wait !== 'false';
+      if (input.plan_id) {
+        if (!wait) {
+          // runTask resolves {success:false} on task failure; this catch only
+          // guards true anomalies (e.g. the task was deleted mid-run).
+          this.rpaEngine.runPlan(String(input.plan_id), input).catch(() => {});
+          return ok({ async: true, plan_id: String(input.plan_id) });
+        }
+        return ok(await this.rpaEngine.runPlan(String(input.plan_id), input));
+      }
+      if (input.task_id) {
+        if (!wait) {
+          this.rpaEngine.runTask(String(input.task_id), input).catch(() => {});
+          return ok({ async: true, task_id: String(input.task_id) });
+        }
+        return ok(await this.rpaEngine.runTask(String(input.task_id), input));
+      }
       if (Array.isArray(input.steps)) {
         const task = await this.rpaStore.createTask({
           profile_id: String(input.profile_id || input.user_id || ''),
           process_name: String(input.name || 'adhoc'),
           steps: input.steps,
         });
+        if (!wait) {
+          this.rpaEngine.runTask(task.id, input).catch(() => {});
+          return ok({ async: true, task_id: task.id });
+        }
         return ok(await this.rpaEngine.runTask(task.id, input));
       }
       return fail('plan_id, task_id or steps required');

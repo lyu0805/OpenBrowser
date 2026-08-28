@@ -579,6 +579,19 @@ async function main() {
   assert.strictEqual(rpaStatus.body.code, 0);
   ok('local-api rpa/status');
 
+  const asyncRun = await httpJson(port, 'POST', '/api/rpa/run', { profile_id: 'p1', steps: [{ type: 'wait', ms: 30 }], wait: false }, authHeaders);
+  assert.strictEqual(asyncRun.body.code, 0);
+  assert.strictEqual(asyncRun.body.data.async, true, 'async rpa run returns immediately');
+  assert.ok(asyncRun.body.data.task_id, 'async rpa run returns task_id');
+  let asyncDone = null;
+  for (let i = 0; i < 50 && !asyncDone; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const probe = await httpJson(port, 'GET', '/api/rpa/tasks/' + encodeURIComponent(asyncRun.body.data.task_id), undefined, authHeaders);
+    if (probe.body.data.task.status !== 'running') asyncDone = probe.body.data.task;
+  }
+  assert.strictEqual(asyncDone && asyncDone.status, 'success', 'async rpa task completes and is pollable');
+  ok('local-api rpa async run + poll');
+
   const rpaTasksLimited = await httpJson(port, 'GET', '/api/rpa/tasks?limit=2', undefined, authHeaders);
   assert.strictEqual(rpaTasksLimited.body.code, 0);
   assert.ok(rpaTasksLimited.body.data.list.length <= 2, 'rpa task list honors limit');
@@ -599,8 +612,16 @@ async function main() {
   assert.ok(TOOLS.some((tool) => tool.name === 'list_applications'));
   assert.ok(TOOLS.some((tool) => tool.name === 'window_sync_start'));
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_run_steps'));
+  const runStepsTool = TOOLS.find((tool) => tool.name === 'rpa_run_steps');
+  assert.ok(runStepsTool.inputSchema.properties.wait, 'rpa_run_steps exposes wait for async runs');
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_task_result'), 'mcp exposes task result retrieval');
   assert.ok(TOOLS.some((tool) => tool.name === 'rpa_tasks'), 'mcp exposes task listing');
+  assert.ok(TOOLS.some((tool) => tool.name === 'rpa_run_plan'), 'mcp exposes saved-plan run');
+  assert.ok(TOOLS.some((tool) => tool.name === 'rpa_plans_list'), 'mcp exposes plan management');
+  assert.ok(TOOLS.some((tool) => tool.name === 'create_profile'), 'mcp exposes profile create');
+  assert.ok(TOOLS.some((tool) => tool.name === 'proxy_create'), 'mcp exposes proxy management');
+  assert.ok(TOOLS.some((tool) => tool.name === 'extension_assign'), 'mcp exposes extension assignment');
+  assert.ok(TOOLS.length >= 30, 'mcp tool surface covers local api domains');
   ok('mcp tools registered (' + TOOLS.length + ')');
 
   // Point MCP request helper at our server by temporarily monkey-patching env... callTool uses fixed env.
