@@ -2007,6 +2007,10 @@ app.whenReady().then(async () => {
     apiKey: automation?.apiKey || process.env.OPENBROWSER_API_KEY || '',
     localApi: automation?.info || null,
   }));
+  registerTrustedIpc('automation:api-key-rotate', async () => {
+    if (!automation) throw new Error('Automation stack is not ready');
+    return { apiKey: await automation.rotateApiKey() };
+  });
 
   await createWindow();
   startAppUpdateWatcher();

@@ -72,6 +72,7 @@ contextBridge.exposeInMainWorld('ops', Object.freeze({
   rpaTemplateConfig: (payload) => ipcRenderer.invoke('automation:rpa-template-config', payload || null),
   rpaTemplateImportRemote: (payload) => ipcRenderer.invoke('automation:rpa-template-import-remote', payload || {}),
   mcpPaths: () => ipcRenderer.invoke('automation:mcp-paths'),
+  rotateApiKey: () => ipcRenderer.invoke('automation:api-key-rotate'),
   proxyList: (filter) => ipcRenderer.invoke('proxy:list', filter || {}),
   proxyGet: (id) => ipcRenderer.invoke('proxy:get', id),
   proxyCreate: (payload) => ipcRenderer.invoke('proxy:create', payload),

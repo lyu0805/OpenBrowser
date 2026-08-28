@@ -172,7 +172,8 @@ function normalizeProfileInput(input = {}) {
 class LocalApiServer {
   constructor(options = {}) {
     this.host = options.host || '127.0.0.1';
-    this.port = Number(options.port) || 50325;
+    // port 0 = OS-assigned ephemeral port (selftests run alongside a live app on 50325)
+    this.port = options.port === 0 ? 0 : (Number(options.port) || 50325);
     this.apiKey = options.apiKey ? String(options.apiKey) : crypto.randomBytes(32).toString('base64url');
     this.allowedOrigins = new Set(options.allowedOrigins || []);
     this.engine = options.engine;
@@ -184,6 +185,11 @@ class LocalApiServer {
     this.getVersion = options.getVersion || (() => '1.0.0');
     this.server = null;
     this.startedAt = null;
+  }
+
+  setApiKey(key) {
+    // Refuse to clear the key: an empty key would reject every caller.
+    if (key) this.apiKey = String(key);
   }
 
   authOk(req) {
@@ -213,6 +219,8 @@ class LocalApiServer {
     await new Promise((resolve, reject) => {
       this.server.once('error', reject);
       this.server.listen(this.port, this.host, () => {
+        const address = this.server.address();
+        if (address && typeof address === 'object' && address.port) this.port = address.port;
         this.startedAt = Date.now();
         resolve();
       });

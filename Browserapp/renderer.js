@@ -5261,6 +5261,16 @@ function setLocalApiStatus(running) {
 }
 
 document.getElementById('api-refresh')?.addEventListener('click', refreshApiMcpPage);
+document.getElementById('api-key-rotate')?.addEventListener('click', async () => {
+  if (!confirm(tx('重新生成 API Key？本地 mcp-key.json 会立即更新，MCP 配置里的旧 Key 将失效。'))) return;
+  try {
+    await window.ops.rotateApiKey();
+    toast(tx('已重新生成，请把新 Key 同步到 MCP 客户端配置'));
+    await refreshApiMcpPage();
+  } catch (error) {
+    toast(tx('重新生成失败：') + error.message);
+  }
+});
 document.getElementById('api-copy-base')?.addEventListener('click', async () => {
   const url = document.getElementById('api-status-url')?.textContent || '';
   try { await navigator.clipboard.writeText(url); toast(tx('已复制')); } catch (_) { toast(url); }

@@ -1,13 +1,13 @@
 'use strict';
 
 const path = require('path');
-const crypto = require('crypto');
 const { LocalApiServer } = require('./local-api-server');
 const { RpaEngine } = require('./rpa-engine');
 const { RpaStore } = require('./rpa-store');
 const { WindowSyncBridge } = require('./window-sync-bridge');
 const { AppCenter } = require('./app-center');
 const { ProxyStore } = require('./proxy-store');
+const { ApiKeyStore } = require('./api-key-store');
 
 /**
  * Mount automation stack (Local API + RPA + window-sync + app center + proxy library).
@@ -27,8 +27,10 @@ async function startAutomation(context = {}) {
     tile,
     emit = () => {},
     port = Number(process.env.OPENBROWSER_API_PORT || 50325),
-    apiKey = process.env.OPENBROWSER_API_KEY || crypto.randomBytes(32).toString('base64url'),
   } = context;
+
+  const apiKeyStore = new ApiKeyStore(app.getPath('userData'));
+  const apiKey = await apiKeyStore.resolve(context.apiKey || process.env.OPENBROWSER_API_KEY || '');
 
   const storePath = path.join(app.getPath('userData'), 'rpa-store.json');
   const rpaStore = new RpaStore(storePath);
@@ -83,6 +85,13 @@ async function startAutomation(context = {}) {
     proxyStore,
     info,
     apiKey,
+    apiKeyStore,
+    async rotateApiKey() {
+      const key = await apiKeyStore.rotate();
+      localApi.setApiKey(key);
+      this.apiKey = key;
+      return key;
+    },
     async stop() {
       await rpaEngine.stop();
       await localApi.stop();
@@ -98,4 +107,5 @@ module.exports = {
   WindowSyncBridge,
   AppCenter,
   ProxyStore,
+  ApiKeyStore,
 };
