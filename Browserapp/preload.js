@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('ops', Object.freeze({
   downloadAppUpdate: () => ipcRenderer.invoke('app:update-download'),
   openGithub: () => ipcRenderer.invoke('app:open-github'),
   setUiChrome: (payload) => ipcRenderer.invoke('system:set-ui-chrome', payload),
+  setCloseAction: (mode) => ipcRenderer.invoke('system:set-close-action', mode),
   kernelStatus: () => ipcRenderer.invoke('kernel:status'),
   kernelDownload: (force) => ipcRenderer.invoke('kernel:download', force),
   kernelCheckUpdate: () => ipcRenderer.invoke('kernel:check-update'),

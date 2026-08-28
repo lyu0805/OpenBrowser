@@ -4302,6 +4302,28 @@ async function initialize() {
   // Backend also pushes app-update-status after startup delay; this primes the light immediately.
   updateEngineBadge(info);
   renderRuntimeInfo(info);
+  // Close-behavior card: hide on macOS (standard close-to-Dock convention) or when
+  // the running main process predates the feature.
+  try {
+    const closeActionCard = document.getElementById('close-action-card');
+    const closeActionSelect = document.getElementById('close-action-select');
+    if (closeActionCard && closeActionSelect) {
+      const supported = info?.platform && info.platform !== 'darwin' && typeof info?.closeAction === 'string';
+      closeActionCard.hidden = !supported;
+      if (supported) {
+        closeActionSelect.value = info.closeAction;
+        closeActionSelect.addEventListener('change', async () => {
+          try {
+            const result = await window.ops.setCloseAction(closeActionSelect.value);
+            closeActionSelect.value = result?.closeAction || closeActionSelect.value;
+            toast(t('toast.saved'));
+          } catch (error) {
+            toast(error?.message || String(error));
+          }
+        });
+      }
+    }
+  } catch (_) {}
   syncState = await window.ops.getSyncState(); preferredMasterId = syncState.master || null; if (syncState.active) selectedSessions = new Set(syncState.selected || []);
   await applySyncSettings(syncSettings); fillSyncSettingsForm();
   ui.profiles = ui.profiles.map((item) => ({ ...item, browser: 'Google Chrome' }));

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, globalShortcut, ipcMain, screen, session, shell } = require('./host-bridge');
+const { app, BrowserWindow, Menu, dialog, globalShortcut, ipcMain, nativeImage, screen, session, shell, Tray } = require('./host-bridge');
 const path = require('path');
 const fs = require('fs');
 const fsp = require('fs/promises');
@@ -38,6 +38,16 @@ try {
   }
 } catch (_) { /* ignore */ }
 app.setPath('userData', userDataRoot);
+
+// Single instance: a second launch (e.g. while the app sits in the tray) focuses the
+// running window instead of spawning a copy. This only limits the app shell — browser
+// environments are kernel processes spawned per profile and are not affected.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => showMainWindow());
+}
 
 const defaultProfileDataRoot = path.join(app.getPath('userData'), 'browser-profiles-v2');
 const localSettingsFile = path.join(app.getPath('userData'), 'openbrowser-local-settings.json');
@@ -538,10 +548,16 @@ function normalizeProfileDataRoot(value) {
   return check.root;
 }
 
+const CLOSE_ACTION_VALUES = ['ask', 'tray', 'exit'];
+function normalizeCloseAction(value) {
+  return CLOSE_ACTION_VALUES.includes(value) ? value : 'ask';
+}
+
 let localSettingsCache = {
   profileDataRoot: defaultProfileDataRoot,
   cloud: cloudSync.defaultCloudConfig(),
   uiGroups: [],
+  closeAction: 'ask',
 };
 
 async function loadLocalSettings() {
@@ -551,6 +567,7 @@ async function loadLocalSettings() {
       profileDataRoot: normalizeProfileDataRoot(saved.profileDataRoot),
       cloud: { ...cloudSync.defaultCloudConfig(), ...(saved.cloud || {}) },
       uiGroups: Array.isArray(saved.uiGroups) ? saved.uiGroups : [],
+      closeAction: normalizeCloseAction(saved.closeAction),
     };
     return localSettingsCache;
   } catch (_) {
@@ -558,6 +575,7 @@ async function loadLocalSettings() {
       profileDataRoot: defaultProfileDataRoot,
       cloud: cloudSync.defaultCloudConfig(),
       uiGroups: [],
+      closeAction: 'ask',
     };
     return localSettingsCache;
   }
@@ -568,6 +586,7 @@ async function saveLocalSettings(value) {
     profileDataRoot: normalizeProfileDataRoot(value.profileDataRoot || localSettingsCache.profileDataRoot),
     cloud: value.cloud || localSettingsCache.cloud || cloudSync.defaultCloudConfig(),
     uiGroups: Array.isArray(value.uiGroups) ? value.uiGroups : (localSettingsCache.uiGroups || []),
+    closeAction: normalizeCloseAction(value.closeAction || localSettingsCache.closeAction),
   };
   await fsp.mkdir(path.dirname(localSettingsFile), { recursive: true });
   const temporary = localSettingsFile + '.tmp';
@@ -794,6 +813,8 @@ let syncSelection = [];
 let syncState = { active: false, master: null, selected: [] };
 const windows = new Set();
 let mainWindow = null;
+let tray = null;
+const forceCloseWindowIds = new Set();
 
 function trustedAppIndexUrl() {
   // Canonical UI document: only this exact file:// path may call registerTrustedIpc.
@@ -1342,6 +1363,92 @@ function applyWindowChrome(win, themeId, colorMode) {
   }
 }
 
+// ---- Close-to-tray (non-macOS): ask once per close, remember the choice on request ----
+
+function closeActionStrings() {
+  const zh = /^zh/i.test(String(app.getLocale?.() || ''));
+  if (zh) {
+    return {
+      message: '最小化到托盘，还是退出程序？',
+      minimize: '最小化到托盘',
+      quit: '退出程序',
+      remember: '记住我的选择',
+      trayShow: '显示主窗口',
+      trayQuit: '退出 OpenBrowser',
+      trayTooltip: 'OpenBrowser 正在后台运行，点击恢复主窗口',
+    };
+  }
+  return {
+    message: 'Minimize to tray, or quit?',
+    minimize: 'Minimize to tray',
+    quit: 'Quit',
+    remember: 'Remember my choice',
+    trayShow: 'Show OpenBrowser',
+    trayQuit: 'Quit OpenBrowser',
+    trayTooltip: 'OpenBrowser is running in the background — click to restore',
+  };
+}
+
+function trayIconImage() {
+  const pixelPng = path.join(__dirname, 'assets', 'logo-pixel.png');
+  const png = path.join(__dirname, 'assets', 'logo.png');
+  const ico = path.join(__dirname, 'assets', 'logo.ico');
+  const source = fs.existsSync(pixelPng) ? pixelPng : (fs.existsSync(png) ? png : ico);
+  let image = nativeImage.createFromPath(source);
+  if (process.platform === 'win32' && !image.isEmpty()) image = image.resize({ width: 16, height: 16 });
+  return image;
+}
+
+function ensureTray() {
+  if (tray || process.platform === 'darwin') return;
+  const strings = closeActionStrings();
+  tray = new Tray(trayIconImage());
+  tray.setToolTip(strings.trayTooltip);
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: strings.trayShow, click: () => showMainWindow() },
+    { type: 'separator' },
+    { label: strings.trayQuit, click: () => app.quit() },
+  ]));
+  // Windows: left click restores the window, right click opens the menu.
+  tray.on('click', () => showMainWindow());
+}
+
+function destroyTray() {
+  try { tray?.destroy(); } catch (_) {}
+  tray = null;
+}
+
+function hideMainWindowToTray(win) {
+  ensureTray();
+  win.hide();
+}
+
+function showMainWindow() {
+  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+  if (!win) {
+    createWindow().catch(() => {});
+    return;
+  }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
+async function askCloseAction(win) {
+  const strings = closeActionStrings();
+  const { response, checkboxChecked } = await dialog.showMessageBox(win, {
+    type: 'question',
+    buttons: [strings.minimize, strings.quit],
+    defaultId: 0,
+    cancelId: 1,
+    message: strings.message,
+    checkboxLabel: strings.remember,
+    checkboxChecked: false,
+    noLink: true,
+  });
+  return { mode: response === 0 ? 'tray' : 'exit', remember: Boolean(checkboxChecked) };
+}
+
 async function createWindow() {
   const isMac = process.platform === 'darwin';
   const isWin = process.platform === 'win32';
@@ -1392,6 +1499,29 @@ async function createWindow() {
   mainWindow = win;
   windows.add(win);
   win.on('closed', () => { windows.delete(win); if (mainWindow === win) mainWindow = null; });
+  win.on('close', (event) => {
+    // macOS keeps the standard close-to-Dock convention; quitting paths bypass this.
+    if (quitting || process.platform === 'darwin') return;
+    if (forceCloseWindowIds.has(win.id)) { forceCloseWindowIds.delete(win.id); return; }
+    const pref = normalizeCloseAction(localSettingsCache.closeAction);
+    if (pref === 'exit') return;
+    event.preventDefault();
+    if (pref === 'tray') {
+      hideMainWindowToTray(win);
+      return;
+    }
+    askCloseAction(win)
+      .then(({ mode, remember }) => {
+        if (remember) {
+          localSettingsCache.closeAction = mode;
+          saveLocalSettings(localSettingsCache).catch(() => {});
+        }
+        if (win.isDestroyed()) return;
+        if (mode === 'tray') hideMainWindowToTray(win);
+        else { forceCloseWindowIds.add(win.id); win.close(); }
+      })
+      .catch(() => { try { if (!win.isDestroyed()) hideMainWindowToTray(win); } catch (_) {} });
+  });
   win.once('ready-to-show', () => {
     if (win.isDestroyed()) return;
     win.show();
@@ -1514,7 +1644,16 @@ app.whenReady().then(async () => {
     systemBrowserPath: engine.systemBrowserPath,
     titleBarIntegrated: process.platform === 'darwin' || process.platform === 'win32',
     platform: process.platform,
+    closeAction: normalizeCloseAction(localSettingsCache.closeAction),
   }));
+  registerTrustedIpc('system:set-close-action', async (_event, mode) => {
+    const value = normalizeCloseAction(mode);
+    localSettingsCache.closeAction = value;
+    await saveLocalSettings(localSettingsCache);
+    // A remembered "exit" means the user no longer wants background running.
+    if (value === 'exit') destroyTray();
+    return { success: true, closeAction: value };
+  });
   registerTrustedIpc('app:update-check', async () => {
     const payload = await pushAppUpdateStatus({ check: true });
     if (payload?.error && !payload?.remoteVersion) throw new Error(payload.error);

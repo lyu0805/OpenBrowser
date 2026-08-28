@@ -891,6 +891,23 @@
   </div>
   <p class="network-mode-hint" id="ui-locale-current" style="margin-top:8px"></p>
 </article>
+<article class="storage-settings-card" id="close-action-card" hidden>
+  <div class="storage-settings-head">
+    <div>
+      <h3 data-i18n="system.close.title">关闭行为</h3>
+      <p data-i18n="system.close.desc">点击窗口关闭按钮时的默认动作。选择「每次询问」会在关闭时弹窗确认，也可在弹窗中勾选记住选择。</p>
+    </div>
+  </div>
+  <div class="settings-row" style="margin-top:10px">
+    <span data-i18n="system.close.label">关闭按钮动作</span>
+    <select id="close-action-select" aria-label="Close button behavior">
+      <option value="ask" data-i18n="system.close.ask">每次询问</option>
+      <option value="tray" data-i18n="system.close.tray">最小化到系统托盘</option>
+      <option value="exit" data-i18n="system.close.exit">直接退出程序</option>
+    </select>
+  </div>
+  <p class="network-mode-hint" data-i18n="system.close.hint" style="margin-top:8px"></p>
+</article>
 <article class="local-status-card" id="local-status-card">
   <div class="local-status-row">
     <i class="local-status-dot" aria-hidden="true"></i>
